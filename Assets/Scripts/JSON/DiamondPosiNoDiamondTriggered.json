@@ -1,0 +1,55 @@
+{
+  "success": true,
+  "matrix": [
+    [
+      "0",
+      "0",
+      "0"
+    ],
+    [
+      "7",
+      "3",
+      "4"
+    ],
+    [
+      "0",
+      "3",
+      "4"
+    ]
+  ],
+  "id": "ResultData",
+  "payload": {
+    "winAmount": 0.25,
+    "lineWins": [
+      {
+        "lineIndex": 0,
+        "symbolName": "GoldA",
+        "payout": 25,
+        "winAmount": 0.25,
+        "positions": [
+          "0,0",
+          "0,1",
+          "0,2"
+        ]
+      }
+    ],
+    "featureWins": {
+      "diamondWin": 0,
+      "diamondCount": 1,
+      "diamondPositions": [
+        "1,0"
+      ]
+    },
+    "triggeredFeatures": [],
+    "freeSpins": {
+      "awarded": 0,
+      "total": 0,
+      "active": false,
+      "remaining": 0,
+      "scatterPositions": []
+    }
+  },
+  "player": {
+    "balance": 500.25
+  }
+}

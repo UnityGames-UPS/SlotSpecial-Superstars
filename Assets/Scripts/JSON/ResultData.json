@@ -1,0 +1,43 @@
+{
+  "success": true,
+  "matrix": [
+    [
+      "4",
+      "1",
+      "2"
+    ],
+    [
+      "4",
+      "6",
+      "2"
+    ],
+    [
+      "2",
+      "2",
+      "3"
+    ]
+  ],
+  "id": "ResultData",
+  "payload": {
+    "winAmount": 0,
+    "lineWins": [],
+    "featureWins": {
+      "diamondWin": 0,
+      "diamondCount": 0,
+      "diamondPositions": []
+    },
+    "triggeredFeatures": [],
+    "freeSpins": {
+      "awarded": 0,
+      "total": 0,
+      "active": false,
+      "remaining": 0,
+      "scatterPositions": [
+        "1,1"
+      ]
+    }
+  },
+  "player": {
+    "balance": 5.222
+  }
+}

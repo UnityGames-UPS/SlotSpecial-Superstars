@@ -1,0 +1,49 @@
+{
+  "success": true,
+  "matrix": [
+    [
+      "3",
+      "6",
+      "6"
+    ],
+    [
+      "3",
+      "6",
+      "1"
+    ],
+    [
+      "3",
+      "7",
+      "3"
+    ]
+  ],
+  "id": "ResultData",
+  "payload": {
+    "winAmount": 0,
+    "lineWins": [],
+    "featureWins": {
+      "diamondWin": 0,
+      "diamondCount": 1,
+      "diamondPositions": [
+        "2,1"
+      ]
+    },
+    "triggeredFeatures": [
+      "FREE_SPINS"
+    ],
+    "freeSpins": {
+      "awarded": 10,
+      "total": 10,
+      "active": true,
+      "remaining": 10,
+      "scatterPositions": [
+        "0,1",
+        "0,2",
+        "1,1"
+      ]
+    }
+  },
+  "player": {
+    "balance": 269.391
+  }
+}
