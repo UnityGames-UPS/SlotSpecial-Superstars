@@ -19,8 +19,7 @@ public class GameManager : MonoBehaviour
   [SerializeField] private Button StopSpin_Button;
   [SerializeField] private Button ToatlBetMinus_Button;
   [SerializeField] private Button TotalBetPlus_Button;
-  [SerializeField] private TMP_Text totalBet_text;
-  [SerializeField] private TMP_Text LineBet_Text;
+  [SerializeField] private TMP_Text[] totalBetDigits; // per-digit BET HUD (left-to-right, dot excluded)
   [SerializeField] private bool isSpinning;
   [SerializeField] private Button TurboON_Button;
   [SerializeField] private Button TurboOFF_Button;
@@ -39,8 +38,6 @@ public class GameManager : MonoBehaviour
   private Coroutine autoSpinRoutine;
   private int _autoSpinRemaining;
   private bool _autoUntilFeature;
-  [SerializeField] internal bool isFreeSpin;
-
   private bool initiated;
   [SerializeField] internal bool turboMode;
   [SerializeField] internal bool immediateStop;
@@ -97,12 +94,12 @@ public class GameManager : MonoBehaviour
     {
       initiated = true;
       betCounter = 0;
-      currentTotalBet = socketController.InitLineBetData.bets[betCounter] * socketController.InitLineBetData.lines.Count;
+      // [Superstars] No paylines in init model; the selected bet is the total stake per spin.
+      // (Diamond Riches multiplied lineBet by lines.Count.)
+      currentTotalBet = socketController.InitLineBetData.bets[betCounter];
       currentBalance = socketController.PlayerData.balance;
       uIManager.UpdatePlayerInfo();
-      if (totalBet_text) totalBet_text.text = TextFormatter.FormatMoney(currentTotalBet);
-      LineBet_Text.text = TextFormatter.FormatMoney(socketController.InitLineBetData.bets[betCounter]);
-      UpdateBetButtonsInteractable();
+      TextFormatter.ApplyMoneyDigits(totalBetDigits, currentTotalBet);
       if (currentBalance < currentTotalBet)
       {
         ToggleButtonGrp(false);
@@ -124,7 +121,7 @@ public class GameManager : MonoBehaviour
     // Block re-entry: during auto / free spin AutoSpinRoutine and RunFreeSpins drive SpinRoutine
     // without populating the spinRoutine field, so the null-check below would otherwise let a stray
     // click launch a parallel SpinRoutine that fights the active one for the reel tweens.
-    if (isAutoSpin || isFreeSpin || isSpinning) return;
+    if (isAutoSpin || isSpinning) return;
 
     // If the win-animation sequence is mid-flight, treat the spin click as a skip so OneSpinFlow's
     // WaitWinAnimDone gate resolves promptly and we can launch the next spin.
@@ -142,7 +139,7 @@ public class GameManager : MonoBehaviour
 
   internal void StartAutoSpin(int count)
   {
-    if (isAutoSpin || isFreeSpin || isSpinning) return;
+    if (isAutoSpin || isSpinning) return;
     if (uIManager.winAnim != null && uIManager.winAnim.IsPlaying)
       uIManager.winAnim.Skip();
     _autoUntilFeature = (count < 0);
@@ -180,9 +177,6 @@ public class GameManager : MonoBehaviour
     while (isAutoSpin)
     {
       yield return SpinRoutine();
-
-      if (isFreeSpin)
-        yield break;
 
       // _autoUntilFeature cutoff is handled mid-spin in HandleAutoUntilFeatureCutoff (right after the
       // result arrives), so isAutoSpin will already be false here and the while-loop exits on its own.
@@ -252,13 +246,7 @@ public class GameManager : MonoBehaviour
 
     yield return OneSpinFlow();
 
-    // The trigger spin's OnSpinEnd flipped isFreeSpin and faded in the FS UI. Drive the awarded
-    // spins inline so retriggers (which run inside OnSpinEnd and bump spinsRemaining) extend
-    // the loop transparently.
-    if (isFreeSpin)
-      yield return RunFreeSpinLoop();
-
-    if (!isAutoSpin && !isFreeSpin)
+    if (!isAutoSpin)
     {
       ToggleButtonGrp(true);
     }
@@ -266,57 +254,16 @@ public class GameManager : MonoBehaviour
     spinRoutine = null;
   }
 
-  IEnumerator RunFreeSpinLoop()
-  {
-    while (freeSpinController.spinsRemaining > 0)
-    {
-      freeSpinController.BeforeSpin();
-      freeSpinController.spinsRemaining--;
-
-      // OneSpinFlow drives a full server spin → reels → diamond/lineWins. Retrigger inside
-      // OnSpinEnd will RegisterAward, bumping spinsRemaining back up — the while-loop then
-      // continues for the extra spins.
-      yield return OneSpinFlow();
-
-      freeSpinController.AccumulateWin(LastSpinWinAmount());
-
-      if (freeSpinController.spinsRemaining > 0)
-        yield return freeSpinController.InterSpinDelay();
-    }
-
-    // Final spin completed without retrigger. Its lineWins already ran one-shot (spinsRemaining
-    // hit 0 inside that AnimateLineWins call — see SlotController.AnimateLineWins). End panel
-    // overlays the looping diamond/lineWins behind it.
-    isFreeSpin = false;
-    yield return freeSpinController.ShowEndPanel(t => uIManager.SetPlayerCurrentWinning(t));
-    audioController.Play("bg");
-  }
-
-  bool LastSpinTriggeredFreeSpins()
-  {
-    var triggered = socketController.ResultData?.payload?.triggeredFeatures;
-    if (triggered == null) return false;
-    foreach (var t in triggered)
-      if (t != null && string.Equals(t.ToString(), "FREE_SPINS", StringComparison.OrdinalIgnoreCase))
-        return true;
-    return false;
-  }
-
-  int LastSpinFreeSpinAward() => socketController.ResultData?.payload?.freeSpins?.awarded ?? 0;
-  double LastSpinWinAmount() => socketController.ResultData?.payload?.winAmount ?? 0;
-  List<string> LastSpinScatterPositions() => socketController.ResultData?.payload?.freeSpins?.scatterPositions;
-
   IEnumerator OneSpinFlow()
   {
     immediateStop = false;
-    if (isFreeSpin) uIManager.ResetWinAnimation();
     yield return OnSpin();
     // yield return new WaitForSecondsRealtime(0.5f);
     yield return OnSpinEnd();
     // Auto / free spin loops must wait for the win-animation sequence to fully reset before the
     // next spin can kick off. Skip() (called from ExecuteSpin / StartAutoSpin / OnSpinStart) makes
     // this resolve promptly.
-    if (isAutoSpin || isFreeSpin) yield return uIManager.WaitWinAnimDone();
+    if (isAutoSpin) yield return uIManager.WaitWinAnimDone();
   }
 
   IEnumerator StopSpin()
@@ -339,7 +286,7 @@ public class GameManager : MonoBehaviour
     uIManager.StopDiamondPayoutRowWin();
     uIManager.PlayDiamondPayoutShineOverlay();
 
-    if (currentBalance < currentTotalBet && !isFreeSpin)
+    if (currentBalance < currentTotalBet)
     {
       uIManager.LowBalPopup();
       return false;
@@ -350,14 +297,8 @@ public class GameManager : MonoBehaviour
 
   IEnumerator OnSpin()
   {
-    if (!isFreeSpin)
-      uIManager.SetPlayerBalance(socketController.PlayerData.balance - currentTotalBet);
+    uIManager.SetPlayerBalance(socketController.PlayerData.balance - currentTotalBet);
 
-    // Stop button is usable in manual, auto, AND free-spin modes (per spec: stop must remain
-    // available to interrupt auto/free chains). Explicitly re-enable interactable — the previous
-    // spin's StopSpin click flow flips it false on press and back true on release, so a click
-    // that races with spin teardown can leave the next spin starting with interactable=false.
-    // Turbo mode auto-stops every spin, so the manual stop button stays hidden throughout.
     immediateStop = false;
     if (!turboMode)
     {
@@ -374,22 +315,23 @@ public class GameManager : MonoBehaviour
 
     if(turboMode)
     {
-      // Turbo: behave as if the user pressed StopSpin the instant the result arrived. The flag
-      // also makes SlotController.StopSpin skip its per-reel stagger so all reels land together.
       immediateStop = true;
     }
-    int waitFor = 10;
-    for (int i = 0; i < waitFor; i++)
-    {
-      if (immediateStop && i > 7)
-      {
-        break;
-      }
 
-      yield return new WaitForSecondsRealtime(0.1f);
+    if (!immediateStop)
+    {
+      int waitFor = 10;
+      for (int i = 0; i < waitFor; i++)
+      {
+        if (immediateStop)
+        {
+          break;
+        }
+        yield return new WaitForSecondsRealtime(0.1f);
+      }
     }
 
-    yield return slotManager.StopSpin(() => audioController.Play("reelstop"));
+    yield return slotManager.StopSpin(() => audioController.Play("reelstop"), socketController.ResultData.matrix);
     immediateStop = false;
 
     if (StopSpin_Button.gameObject.activeSelf)
@@ -401,102 +343,7 @@ public class GameManager : MonoBehaviour
     currentBalance = socketController.ResultData.player.balance;
     uIManager.UpdatePlayerInfo();
 
-    // FS trigger / retrigger is pre-armed here (auto-spin kill, BeginSession, RegisterAward, flip
-    // isFreeSpin on entry) but the centered scatter sequence + Start panel + FS UI fade are
-    // deferred until AFTER this spin's win presentation. Otherwise the user dismisses the Start
-    // panel and only then sees the trigger spin's big-win / line / diamond animations playing on
-    // top of the already-faded-in FS background.
-    //
-    // Flipping isFreeSpin early also routes AnimateLineWins through its synced-pass-only branch
-    // (SlotController.AnimateLineWins checks isFreeSpin && spinsRemaining > 0), which is exactly
-    // what we want for the trigger spin.
-    bool fsTriggered = LastSpinTriggeredFreeSpins();
-    int awarded = 0;
-    bool fsIsEntry = false;
-    if (fsTriggered)
-    {
-      // Auto-spin must turn off the moment FS triggers (per spec).
-      if (isAutoSpin)
-      {
-        isAutoSpin = false;
-        SetAutoSpinUI(false);
-        if (autoSpinRoutine != null) { StopCoroutine(autoSpinRoutine); autoSpinRoutine = null; }
-      }
-
-      awarded = LastSpinFreeSpinAward();
-      fsIsEntry = !isFreeSpin;
-      if (fsIsEntry) freeSpinController.BeginSession();
-      freeSpinController.RegisterAward(awarded);
-      if (fsIsEntry) isFreeSpin = true;
-    }
-
-    if (socketController.ResultData.payload.winAmount > 0)
-      uIManager.TriggerWinAnimation(socketController.ResultData.payload.winAmount, currentTotalBet);
-
-    // Diamond feature: server always sends diamondCount + diamondPositions (even for the
-    // single-diamond idle case).
-    var feats = socketController.ResultData.payload.featureWins;
-    bool diamondTrigger = feats != null && feats.diamondPositions != null && feats.diamondCount >= 2;
-    bool diamondIdle = feats != null && feats.diamondPositions != null && feats.diamondCount == 1;
-
-    if (diamondTrigger) uIManager.PlayDiamondPayoutRowWin(feats.diamondCount);
-
-    // Matrix diamond animation:
-    //   - auto-spin or FS-trigger spin: single non-looped cycle yielded in parallel with the
-    //     line-wins synced pass; the icons reset themselves on completion. For FS-trigger we use
-    //     the one-shot so we can proceed to the centered scatter sequence afterward without
-    //     leaving a forever-loop running underneath it. If the user stops auto mid-cycle we
-    //     re-arm the looping animation below so the trigger stays visible.
-    //   - manual non-FS: existing forever-loop, torn down on next StartSpin's StopIconAnimation.
-    Coroutine diamondCycle = null;
-    if (diamondTrigger)
-    {
-      if (isAutoSpin || fsTriggered) diamondCycle = StartCoroutine(slotManager.PlayDiamondTriggeredCycle(feats.diamondPositions));
-      else slotManager.StartDiamondTriggered(feats.diamondPositions);
-    }
-    else if (diamondIdle && SlotController.TryParseDiamondPos(feats.diamondPositions[0], out int idleRow, out int idleCol))
-    {
-      StartCoroutine(slotManager.PlayDiamondIdle(idleRow, idleCol));
-    }
-
-    if (socketController.ResultData.payload.lineWins.Count > 0)
-    {
-      // "win" SFX now fires with the win-line animations (after the scatter animations), inside
-      // SlotController's win presentation.
-      yield return slotManager.AnimateLineWins(socketController.ResultData.payload.lineWins);
-    }
-
-    if (diamondCycle != null) yield return diamondCycle;
-
-    // Auto-spin was stopped during the parallel cycles: re-arm the looping diamond animation so
-    // the matrix matches what a manual-spin trigger would have shown.
-    if (diamondTrigger && !isAutoSpin && !isFreeSpin)
-      slotManager.StartDiamondTriggered(feats.diamondPositions);
-
-    // FS centered scatter sequence + Start panel + FS UI fade-in run AFTER the trigger spin's
-    // win presentation has finished. Wait for the big-win animation to fully resolve first so it
-    // doesn't get covered by the centered scatters; OneSpinFlow's tail-wait then becomes a no-op.
-    if (fsTriggered)
-    {
-      yield return uIManager.WaitWinAnimDone();
-
-      Coroutine startPanelIn = null;
-      yield return slotManager.PlayFreeSpinTriggeredSequence(
-        LastSpinScatterPositions(),
-        onThirdPlayStart: () =>
-        {
-          startPanelIn = StartCoroutine(freeSpinController.PlayStartPanelIn(awarded));
-        }
-      );
-      if (startPanelIn != null) yield return startPanelIn;
-      yield return freeSpinController.WaitStartPanelOk();
-
-      if (fsIsEntry)
-      {
-        audioController.Play("fbg");
-        yield return freeSpinController.FadeInFreeSpinUi();
-      }
-    }
+    yield return null;
   }
 
   void SetAutoSpinUI(bool autoActive)
@@ -514,15 +361,8 @@ public class GameManager : MonoBehaviour
   {
     if (SlotStart_Button) SlotStart_Button.interactable = toggle;
     if (AutoSpin_Button) AutoSpin_Button.interactable = toggle;
-    if (toggle)
-    {
-      UpdateBetButtonsInteractable();
-    }
-    else
-    {
-      if (ToatlBetMinus_Button) ToatlBetMinus_Button.interactable = false;
-      if (TotalBetPlus_Button) TotalBetPlus_Button.interactable = false;
-    }
+    if (ToatlBetMinus_Button) ToatlBetMinus_Button.interactable = toggle;
+    if (TotalBetPlus_Button) TotalBetPlus_Button.interactable = toggle;
     uIManager.paytable_Button.interactable = toggle;
     TurboON_Button.interactable = toggle;
     TurboOFF_Button.interactable = toggle;
@@ -539,19 +379,9 @@ public class GameManager : MonoBehaviour
     {
       betCounter = (betCounter <= 0) ? lastIndex : betCounter - 1;
     }
-
-    currentTotalBet = socketController.InitLineBetData.bets[betCounter] * socketController.InitLineBetData.lines.Count;
-    if (totalBet_text) totalBet_text.text = TextFormatter.FormatMoney(currentTotalBet);
-    LineBet_Text.text = TextFormatter.FormatMoney(socketController.InitLineBetData.bets[betCounter]);
-    UpdateBetButtonsInteractable();
+    currentTotalBet = socketController.InitLineBetData.bets[betCounter];
+    TextFormatter.ApplyMoneyDigits(totalBetDigits, currentTotalBet);
     uIManager.PopulateSymbolsPayout(socketController.InitSymbolData);
     uIManager.RefreshDiamondPayoutTexts(currentTotalBet);
-  }
-
-  void UpdateBetButtonsInteractable()
-  {
-    if (socketController == null || socketController.InitLineBetData == null || socketController.InitLineBetData.bets == null) return;
-    if (ToatlBetMinus_Button) ToatlBetMinus_Button.interactable = true;
-    if (TotalBetPlus_Button) TotalBetPlus_Button.interactable = true;
   }
 }

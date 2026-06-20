@@ -16,6 +16,7 @@ public class Root
   public bool success;
   public GameData gameData;
   public Features features;
+  public Tournament tournament;
   public UiData uiData;
   public Player player;
   public List<List<string>> matrix;
@@ -25,23 +26,59 @@ public class Root
 [Serializable]
 public class GameData
 {
-  public List<List<int>> lines;
   public List<double> bets;
 }
 
 [Serializable]
 public class Features
 {
-  public FreeSpinsConfig freeSpins;
-  public Dictionary<int, int> diamondPayout; // keys "2".."9" -> multiplier
+  public WinMultiplierConfig winMultiplier;
+  public AnyPayouts anyPayouts;
+}
+
+// Last-reel win multiplier feature (e.g. 2x/4x/10x/25x on the configured reel).
+[Serializable]
+public class WinMultiplierConfig
+{
+  public List<int> values;
+  public bool enabled;
+  public List<int> weights;
+  public int reelIndex;
+  public string description;
+}
+
+// Flat payouts for "any" combinations.
+[Serializable]
+public class AnyPayouts
+{
+  public double anyBars;
+  public double anyMixed;
+  public double anySevens;
+  public double oneStarSeven;
+  public double twoStarSevens;
 }
 
 [Serializable]
-public class FreeSpinsConfig
+public class Tournament
 {
-  public int spins;
-  public bool retrigger;
-  public int triggerCount;
+  public string tournamentId;
+  public bool isActive;
+  public long startTime;
+  public long currentTime;
+  public int durationSeconds;
+  public double startPool;
+  public double targetPool;
+  public List<TopPlayer> topPlayers;
+  public int playerRank;
+  public double playerScore;
+}
+
+[Serializable]
+public class TopPlayer
+{
+  public string id;
+  public string name;
+  public double score;
 }
 
 [Serializable]
@@ -62,6 +99,8 @@ public class Symbol
   public int id;
   public string name;
   public double payout;
+  public string group;
+  public int multiplierValue; // only present on multiplier symbols; defaults to 0 otherwise
   public List<int> multiplier;
   public string description;
 }
@@ -75,29 +114,17 @@ public class Player
 [Serializable]
 public class Payload
 {
-  public double winAmount;
-  public List<LineWin> lineWins;
-  public FeatureWins featureWins;
-  public List<object> triggeredFeatures;     // TODO: element type unknown (empty in sample)
-  public FreeSpinsState freeSpins;
+  public double currentWinning;
+  public Win win;
 }
 
 [Serializable]
-public class FeatureWins
+public class Win
 {
-  public double diamondWin;
-  public int diamondCount;
-  public List<string> diamondPositions;
-}
-
-[Serializable]
-public class FreeSpinsState
-{
-  public int awarded;
-  public int total;
-  public bool active;
-  public int remaining;
-  public List<string> scatterPositions;
+  public string type;
+  public int symbolId;
+  public int multiplier;
+  public double baseWin;
 }
 
 // Spin request payload
@@ -112,14 +139,4 @@ public class MessageData
 public class Data
 {
   public int betIndex;
-}
-
-[Serializable]
-public class LineWin
-{
-  public int lineIndex;
-  public string symbolName;
-  public double payout;
-  public double winAmount;
-  public List<string> positions;   // "row,col"
 }

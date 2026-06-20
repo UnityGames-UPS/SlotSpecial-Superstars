@@ -72,7 +72,7 @@ public class UIManager : MonoBehaviour
   [SerializeField] private AudioController audioController;
 
   [Header("player texts")]
-  [SerializeField] private TMP_Text playerCurrentWinning;
+  [SerializeField] private TMP_Text[] winDigits; // per-digit WIN HUD (left-to-right, dot excluded)
   [SerializeField] private TMP_Text playerBalance;
 
   [Header("Diamonds Payout UI")]
@@ -157,7 +157,7 @@ public class UIManager : MonoBehaviour
     if (SoundON_Button) SoundON_Button.gameObject.SetActive(isSound);
     if (SoundOFF_Button) SoundOFF_Button.gameObject.SetActive(!isSound);
   }
-
+ 
   private void SetButton(Button button, Action action)
   {
     if (button == null)
@@ -176,24 +176,20 @@ public class UIManager : MonoBehaviour
 
   internal void UpdatePlayerInfo()
   {
-    double winAmount = socketController.ResultData?.payload?.winAmount ?? 0.00;
-    if(winAmount>0)
-      playerCurrentWinning.text = TextFormatter.FormatSprite(winAmount, TextFormatter.GetSignificantDecimals(winAmount));
-    else
-     playerCurrentWinning.text = TextFormatter.FormatSprite(0, 2); 
+    double winAmount = socketController.ResultData?.payload?.currentWinning ?? 0.00;
+    TextFormatter.ApplyMoneyDigits(winDigits, winAmount);
 
     SetPlayerBalance(socketController.PlayerData.balance);
   }
 
   void ResetWinUIText()
   {
-    playerCurrentWinning.text = TextFormatter.FormatSprite(0.00, 2);
+    TextFormatter.ApplyMoneyDigits(winDigits, 0);
   }
 
   internal void SetPlayerCurrentWinning(double value)
   {
-    if (playerCurrentWinning != null)
-      playerCurrentWinning.text = TextFormatter.FormatSprite(value, TextFormatter.GetSignificantDecimals(value));
+    TextFormatter.ApplyMoneyDigits(winDigits, value);
   }
 
   internal void LowBalPopup()
@@ -227,16 +223,18 @@ public class UIManager : MonoBehaviour
 
   internal void PopulateInfoPageDiamondPayouts()
   {
-    if (infoPageDiamondPayoutText == null) return;
-    var payout = socketController?.InitData?.features?.diamondPayout;
-    if (payout == null) return;
-
-    for (int i = 0; i < infoPageDiamondPayoutText.Length; i++)
-    {
-      if (infoPageDiamondPayoutText[i] == null) continue;
-      int count = i + 2;
-      infoPageDiamondPayoutText[i].text = payout.TryGetValue(count, out int mult) ? $"x{mult}" : "";
-    }
+    // [Superstars] Diamond payout removed from init model. Diamond Riches legacy — disabled
+    // pending Superstars info-page rework.
+    // if (infoPageDiamondPayoutText == null) return;
+    // var payout = socketController?.InitData?.features?.diamondPayout;
+    // if (payout == null) return;
+    //
+    // for (int i = 0; i < infoPageDiamondPayoutText.Length; i++)
+    // {
+    //   if (infoPageDiamondPayoutText[i] == null) continue;
+    //   int count = i + 2;
+    //   infoPageDiamondPayoutText[i].text = payout.TryGetValue(count, out int mult) ? $"x{mult}" : "";
+    // }
   }
 
   internal void PlayDiamondPayoutShineOverlay()
@@ -305,20 +303,22 @@ public class UIManager : MonoBehaviour
 
   internal void RefreshDiamondPayoutTexts(double totalBet = 0)
   {
-    if (diamondPayoutRowText == null) return;
-    var payout = socketController?.InitData?.features?.diamondPayout;
-    var bets = socketController?.InitLineBetData?.bets;
-    if (payout == null || bets == null || gameManager == null) return;
-    if (gameManager.betCounter < 0 || gameManager.betCounter >= bets.Count) return;
-    double lineBet = bets[gameManager.betCounter];
-
-    for (int i = 0; i < diamondPayoutRowText.Length; i++)
-    {
-      if (diamondPayoutRowText[i] == null) continue;
-      int count = i + 2;
-      if (!payout.TryGetValue(count, out int mult)) { diamondPayoutRowText[i].text = ""; continue; }
-      diamondPayoutRowText[i].text = TextFormatter.FormatMoney(mult * totalBet);
-    }
+    // [Superstars] Diamond payout removed from init model. Diamond Riches legacy — disabled
+    // pending Superstars rework.
+    // if (diamondPayoutRowText == null) return;
+    // var payout = socketController?.InitData?.features?.diamondPayout;
+    // var bets = socketController?.InitLineBetData?.bets;
+    // if (payout == null || bets == null || gameManager == null) return;
+    // if (gameManager.betCounter < 0 || gameManager.betCounter >= bets.Count) return;
+    // double lineBet = bets[gameManager.betCounter];
+    //
+    // for (int i = 0; i < diamondPayoutRowText.Length; i++)
+    // {
+    //   if (diamondPayoutRowText[i] == null) continue;
+    //   int count = i + 2;
+    //   if (!payout.TryGetValue(count, out int mult)) { diamondPayoutRowText[i].text = ""; continue; }
+    //   diamondPayoutRowText[i].text = TextFormatter.FormatMoney(mult * totalBet);
+    // }
   }
 
   private void CallOnExitFunction()

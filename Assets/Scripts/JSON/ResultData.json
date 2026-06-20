@@ -2,42 +2,73 @@
   "success": true,
   "matrix": [
     [
-      "4",
-      "1",
-      "2"
-    ],
-    [
-      "4",
       "6",
-      "2"
+      "3",
+      "4",
+      "9"
     ],
     [
-      "2",
-      "2",
-      "3"
+      "0",
+      "0",
+      "3",
+      "10"
+    ],
+    [
+      "7",
+      "0",
+      "0",
+      "10"
     ]
   ],
   "id": "ResultData",
   "payload": {
-    "winAmount": 0,
-    "lineWins": [],
-    "featureWins": {
-      "diamondWin": 0,
-      "diamondCount": 0,
-      "diamondPositions": []
-    },
-    "triggeredFeatures": [],
-    "freeSpins": {
-      "awarded": 0,
-      "total": 0,
-      "active": false,
-      "remaining": 0,
-      "scatterPositions": [
-        "1,1"
-      ]
+    "currentWinning": 0,
+    "win": {
+      "type": "none",
+      "symbolId": 0,
+      "multiplier": 10,
+      "baseWin": 0
     }
   },
+  "tournament": {
+    "tournamentId": "SL-ST-1781864894482",
+    "isActive": true,
+    "startTime": 1781864894482,
+    "currentTime": 1781864894553,
+    "durationSeconds": 300,
+    "startPool": 0.01,
+    "targetPool": 6.5,
+    "topPlayers": [
+      {
+        "id": "f52d1f935394f342000d547e",
+        "name": "1",
+        "score": 11.736
+      },
+      {
+        "id": "4b3fc84bdfbe3ecfa984fa37",
+        "name": "2",
+        "score": 10.613
+      },
+      {
+        "id": "e7c9ec80c81a40847ea24916",
+        "name": "3",
+        "score": 9.918
+      },
+      {
+        "id": "71d7db308f684def8997340d",
+        "name": "4",
+        "score": 9.732
+      },
+      {
+        "id": "bdaf71395408e85d5e86c955",
+        "name": "5",
+        "score": 9.523
+      }
+    ],
+    "playerRank": 52,
+    "playerScore": 0
+  },
   "player": {
-    "balance": 5.222
+    "balance": 76.921
   }
 }
