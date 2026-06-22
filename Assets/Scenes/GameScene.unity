@@ -7807,6 +7807,56 @@ MonoBehaviour:
   - {fileID: 285931148}
   - {fileID: 1804783671}
   playerBalance: {fileID: 1666685184}
+  winThreshold: 7
+  valueLerpDuration: 1.5
+  bigWinValueLerpDuration: 3
+  redFadeInDuration: 0.4
+  yellowFadeInDuration: 0.4
+  postLerpHold: 2
+  coinFadeOutDuration: 0.4
+  panelFadeOutDuration: 0.5
+  winPanelCanvasGroup: {fileID: 2015397389}
+  winPanelBG: {fileID: 979678794}
+  bgHiddenY: -725
+  bgShowingY: -231
+  bgScaleUpDuration: 0.4
+  bgMoveDuration: 0.4
+  bgScaleEase: 27
+  bgMoveEase: 9
+  winValueTexts:
+  - {fileID: 1111309626}
+  - {fileID: 642366678}
+  - {fileID: 558167215}
+  - {fileID: 1920669316}
+  - {fileID: 1648182826}
+  - {fileID: 746080831}
+  - {fileID: 258703586}
+  - {fileID: 969220729}
+  - {fileID: 545534700}
+  - {fileID: 1487234122}
+  - {fileID: 118213475}
+  - {fileID: 117455217}
+  - {fileID: 486315188}
+  - {fileID: 1350696456}
+  - {fileID: 1049084313}
+  - {fileID: 1131086237}
+  - {fileID: 1065249255}
+  - {fileID: 740837379}
+  - {fileID: 204773165}
+  - {fileID: 2143300545}
+  - {fileID: 354233993}
+  - {fileID: 1556734338}
+  redCanvasGroup: {fileID: 937073022}
+  yellowCanvasGroup: {fileID: 1494047958}
+  yellowColumnAnims:
+  - {fileID: 1565084790}
+  - {fileID: 1281972690}
+  - {fileID: 2027450202}
+  - {fileID: 1402665816}
+  coinPool: {fileID: 2036978685}
+  debugWinTesting: 1
+  debugLowWinValue: 5
+  debugBigWinValue: 500
 --- !u!1 &379896524
 GameObject:
   m_ObjectHideFlags: 0
@@ -24823,7 +24873,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 0.5882353}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -24928,7 +24978,7 @@ MonoBehaviour:
   useSharedMaterial: 1
   doLoopAnimation: 1
   currentAnimationState: 0
-  AnimationSpeed: 53
+  AnimationSpeed: 54
   delayBetweenLoop: 0
   StartOnAwakeDelay: 0
   StartOnAwake: 0
@@ -27624,7 +27674,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 0.5882353}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -30951,7 +31001,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 0.5882353}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -31056,7 +31106,7 @@ MonoBehaviour:
   useSharedMaterial: 1
   doLoopAnimation: 1
   currentAnimationState: 0
-  AnimationSpeed: 53
+  AnimationSpeed: 54
   delayBetweenLoop: 0
   StartOnAwakeDelay: 0
   StartOnAwake: 0
@@ -39197,6 +39247,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1949648588}
   - component: {fileID: 1949648590}
+  - component: {fileID: 1949648592}
+  - component: {fileID: 1949648591}
   m_Layer: 5
   m_Name: BG
   m_TagString: Untagged
@@ -39246,6 +39298,49 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1949648587}
   m_CullTransparentMesh: 1
+--- !u!114 &1949648591
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1949648587}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31a19414c41e5ae4aae2af33fee712f6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Mask
+  m_ShowMaskGraphic: 0
+--- !u!114 &1949648592
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1949648587}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
 --- !u!1001 &1968692171
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -40924,7 +41019,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 0.5882353}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -41029,7 +41124,7 @@ MonoBehaviour:
   useSharedMaterial: 1
   doLoopAnimation: 1
   currentAnimationState: 0
-  AnimationSpeed: 53
+  AnimationSpeed: 54
   delayBetweenLoop: 0
   StartOnAwakeDelay: 0
   StartOnAwake: 0
@@ -41039,6 +41134,65 @@ MonoBehaviour:
   startInvisible: 0
   holdAtLastFrame: 0
   endTextureArray: []
+--- !u!1 &2036978683
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2036978684}
+  - component: {fileID: 2036978685}
+  m_Layer: 0
+  m_Name: FountainPool
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2036978684
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2036978683}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -1.14621, y: -0.36957, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2036978685
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2036978683}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a2e75989bcd4b4f2a98f26e98b7677a3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CoinFountainPool
+  InitialCount: 20
+  PrefabToPool: {fileID: 7577211889013197533, guid: 86592076f6b8e49c2820369dd513aa40, type: 3}
+  ParentTransform: {fileID: 2015397388}
+  ItemsInUse: []
+  spawnOrigin: {fileID: 979678794}
+  coinsPerBatch: 2
+  batchInterval: 0.2
+  coinFadeInDuration: 0.4
+  fallToY: -800
+  riseRange: {x: 400, y: 700}
+  driftXRange: {x: 400, y: 1000}
+  upDurationRange: {x: 0.45, y: 0.7}
+  downDurationRange: {x: 0.5, y: 0.8}
+  upEase: 6
+  downEase: 5
 --- !u!1001 &2039693219
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -45300,6 +45454,7 @@ SceneRoots:
   - {fileID: 500036491}
   - {fileID: 2046803209}
   - {fileID: 830221915}
+  - {fileID: 2036978684}
   - {fileID: 4326194446140345616}
   - {fileID: 5192868531200642290}
   - {fileID: 1571308677}

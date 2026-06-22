@@ -49,6 +49,50 @@ public class UIManager : MonoBehaviour
   [SerializeField] private TMP_Text[] winDigits; // per-digit WIN HUD (left-to-right, dot excluded)
   [SerializeField] private TMP_Text playerBalance;
 
+  [Header("Win Celebration - Timing")]
+  [SerializeField] private float winThreshold = 7f;        // win >= winThreshold * totalBet => big win
+  [SerializeField] private float valueLerpDuration = 1.5f; // low-win count-up duration 0 -> winValue
+  [SerializeField] private float bigWinValueLerpDuration = 3f; // big-win count-up duration
+  [SerializeField] private float redFadeInDuration = 0.4f;
+  [SerializeField] private float yellowFadeInDuration = 0.4f;
+  [SerializeField] private float postLerpHold = 2f;        // wait after lerp before fading out
+  [SerializeField] private float coinFadeOutDuration = 0.4f;
+  [SerializeField] private float panelFadeOutDuration = 0.5f;
+
+  [Header("Win Celebration - WinPanel")]
+  [SerializeField] private CanvasGroup winPanelCanvasGroup;
+  [SerializeField] private RectTransform winPanelBG;       // BG image: scaled + moved in Y
+  [SerializeField] private float bgHiddenY;                // reset/start anchored Y
+  [SerializeField] private float bgShowingY;               // shown anchored Y
+  [SerializeField] private float bgScaleUpDuration = 0.4f;
+  [SerializeField] private float bgMoveDuration = 0.4f;
+  [SerializeField] private Ease bgScaleEase = Ease.OutBack;
+  [SerializeField] private Ease bgMoveEase = Ease.OutCubic;
+  [SerializeField] private TMP_Text[] winValueTexts;       // panel per-digit array (lerps with HUD)
+
+  [Header("Win Celebration - Column Overlays")]
+  [SerializeField] private CanvasGroup redCanvasGroup;     // low-win glow (fades in, stays on)
+  [SerializeField] private CanvasGroup yellowCanvasGroup;  // big-win glow
+  [SerializeField] private ImageAnimation[] yellowColumnAnims; // looping anims under yellow overlays
+
+  [Header("Win Celebration - Coins")]
+  [SerializeField] private CoinFountainPool coinPool;
+
+  [Header("Win Celebration - Debug")]
+  [SerializeField] private bool debugWinTesting = false; // enable keyboard testing in play mode
+  [SerializeField] private double debugLowWinValue = 5.0;
+  [SerializeField] private double debugBigWinValue = 500.0;
+
+  // Win-celebration runtime state.
+  private double _targetWin;
+  private double _displayValue;
+  private Tween _valueTween;
+  private Coroutine _bigWinRoutine;
+  private Coroutine _fadeRoutine; // tracks a standalone GracefulFadeOut (skip path / debug)
+  private bool _bigWinActive; // true from big-win start until fully reset (gates auto-spin + skip)
+  private bool _lerpDone;
+  private bool _fadingOut;
+
   internal Action<bool> ToggleAudio;
   internal Action<string> playButtonAudio;
 
@@ -60,6 +104,16 @@ public class UIManager : MonoBehaviour
     if (jsFunctCalls != null)
       jsFunctCalls.RegisterVisibilityListener(gameObject.name);
 
+    // Hide all win-celebration visuals at startup (alpha only — never interactable/blocksRaycasts).
+    if (redCanvasGroup != null) redCanvasGroup.alpha = 0f;
+    if (yellowCanvasGroup != null) yellowCanvasGroup.alpha = 0f;
+    if (winPanelCanvasGroup != null) winPanelCanvasGroup.alpha = 0f;
+    if (winPanelBG != null)
+    {
+      winPanelBG.localScale = Vector3.zero;
+      Vector2 p = winPanelBG.anchoredPosition;
+      winPanelBG.anchoredPosition = new Vector2(p.x, bgHiddenY);
+    }
   }
 
   private void Start()
@@ -111,9 +165,9 @@ public class UIManager : MonoBehaviour
   internal void UpdatePlayerInfo()
   {
     double winAmount = socketController.ResultData?.payload?.currentWinning ?? 0.00;
-    TextFormatter.ApplyMoneyDigits(winDigits, winAmount);
-
     SetPlayerBalance(socketController.PlayerData.balance);
+    // Win value is no longer set instantly — the celebration lerps it (and runs red/yellow visuals).
+    PlayWinCelebration(winAmount, gameManager.CurrentTotalBet);
   }
 
   internal void LowBalPopup()
@@ -185,10 +239,201 @@ public class UIManager : MonoBehaviour
     if (playerBalance != null) playerBalance.text = formatted;
   }
 
-  internal void TriggerWinAnimation(double winAmount, double betAmount)
+  // ===== Win Celebration =====
+
+  // Entry point from UpdatePlayerInfo. Branches into the low-win (red glow) or big-win (yellow + panel +
+  // coins) presentation; in both cases the win value counts up rather than snapping.
+  private void PlayWinCelebration(double winValue, double totalBet)
   {
-    if (winAmount <= 0 || betAmount <= 0) return;
-    // if (winAnim != null) winAnim.Trigger(winAmount, betAmount);
+    if (winValue <= 0) return; // HUD already reset to 0 at spin start
+
+    bool bigWin = totalBet > 0 && winValue >= winThreshold * totalBet;
+    if (bigWin)
+    {
+      _bigWinActive = true;
+      _bigWinRoutine = StartCoroutine(BigWinSequence(winValue));
+    }
+    else
+    {
+      StartValueLerp(winValue, valueLerpDuration);
+      if (redCanvasGroup != null) redCanvasGroup.DOFade(1f, redFadeInDuration); // fade in and keep on
+    }
+  }
+
+  // Lerps the win value 0 -> target, updating the panel digits and the HUD digits together so both
+  // show the same value while counting up.
+  private void StartValueLerp(double target, float duration)
+  {
+    _valueTween?.Kill();
+    _displayValue = 0;
+    _lerpDone = false;
+    _targetWin = target;
+    _valueTween = DOTween.To(() => _displayValue, v =>
+    {
+      _displayValue = v;
+      TextFormatter.ApplyMoneyDigits(winValueTexts, v); // panel
+      TextFormatter.ApplyMoneyDigits(winDigits, v);     // HUD
+    }, target, duration).SetEase(Ease.Linear).OnComplete(() => _lerpDone = true);
+  }
+
+  private IEnumerator BigWinSequence(double winValue)
+  {
+    // Reset BG before the reveal (also done in Awake).
+    if (winPanelBG != null)
+    {
+      winPanelBG.localScale = Vector3.zero;
+      Vector2 p = winPanelBG.anchoredPosition;
+      winPanelBG.anchoredPosition = new Vector2(p.x, bgHiddenY);
+    }
+    if (winPanelCanvasGroup != null) winPanelCanvasGroup.alpha = 0f;
+
+    // Yellow column glow + looping animations.
+    if (yellowCanvasGroup != null) yellowCanvasGroup.DOFade(1f, yellowFadeInDuration);
+    if (yellowColumnAnims != null)
+      foreach (var a in yellowColumnAnims) if (a != null) a.StartAnimation();
+
+    // Count-up runs in parallel with the panel reveal.
+    StartValueLerp(winValue, bigWinValueLerpDuration);
+
+    // Reveal the panel: fade CG in while scaling up + moving to the shown Y.
+    if (winPanelCanvasGroup != null) winPanelCanvasGroup.DOFade(1f, bgScaleUpDuration);
+    Sequence panelSeq = DOTween.Sequence();
+    if (winPanelBG != null)
+    {
+      panelSeq.Append(winPanelBG.DOScale(1f, bgScaleUpDuration).SetEase(bgScaleEase));
+      panelSeq.Join(winPanelBG.DOAnchorPosY(bgShowingY, bgMoveDuration).SetEase(bgMoveEase));
+    }
+    yield return panelSeq.WaitForCompletion();
+
+    // Panel is in place — start the coin fountain.
+    if (coinPool != null) coinPool.StartFountain();
+
+    yield return new WaitUntil(() => _lerpDone);
+    yield return new WaitForSeconds(postLerpHold);
+
+    yield return GracefulFadeOut();
+
+    _bigWinActive = false;
+    _bigWinRoutine = null;
+  }
+
+  // Fades coins + panel out together, then stops the fountain and resets everything. Shared by the
+  // normal end of the big-win sequence and by the skip path.
+  private IEnumerator GracefulFadeOut()
+  {
+    if (_fadingOut) yield break;
+    _fadingOut = true;
+
+    // Kill any in-flight reveal tweens (possible on the skip path) so they don't fight the fade-out.
+    if (winPanelCanvasGroup != null) winPanelCanvasGroup.DOKill();
+    if (winPanelBG != null) winPanelBG.DOKill();
+
+    if (coinPool != null) coinPool.FadeOutAllActive(coinFadeOutDuration); // keep spawning while fading
+
+    if (winPanelCanvasGroup != null)
+    {
+      Tween pf = winPanelCanvasGroup.DOFade(0f, panelFadeOutDuration);
+      yield return pf.WaitForCompletion();
+    }
+
+    if (coinPool != null) coinPool.ClearAll();
+    // NOTE: the yellow column overlays/animations are intentionally NOT stopped here — they keep
+    // looping until the next spin (cleared in ResetWinForNewSpin).
+    if (winPanelBG != null)
+    {
+      winPanelBG.localScale = Vector3.zero;
+      Vector2 p = winPanelBG.anchoredPosition;
+      winPanelBG.anchoredPosition = new Vector2(p.x, bgHiddenY);
+    }
+
+    _fadingOut = false;
+    _bigWinActive = false;
+  }
+
+  // Called at the start of every successful spin. Directly resets the HUD/panel digits + red glow (no
+  // lerp). If a big win is still showing, this is the skip: snap the panel to its final value and run
+  // the graceful fade-out in the background while the new spin proceeds.
+  internal void ResetWinForNewSpin()
+  {
+    _valueTween?.Kill();
+    TextFormatter.ApplyMoneyDigits(winValueTexts, 0);
+    TextFormatter.ApplyMoneyDigits(winDigits, 0);
+    if (redCanvasGroup != null) redCanvasGroup.alpha = 0f;
+
+    // Stop the looping yellow column overlays — they run until this next spin begins.
+    if (yellowCanvasGroup != null) { yellowCanvasGroup.DOKill(); yellowCanvasGroup.alpha = 0f; }
+    if (yellowColumnAnims != null)
+      foreach (var a in yellowColumnAnims) if (a != null) a.StopAnimation();
+
+    if (_bigWinActive && !_fadingOut)
+    {
+      if (_bigWinRoutine != null)
+      {
+        StopCoroutine(_bigWinRoutine);
+        _bigWinRoutine = null;
+      }
+      // Snap the panel value to its final so the count-up doesn't visibly cut off; HUD already 0.
+      TextFormatter.ApplyMoneyDigits(winValueTexts, _targetWin);
+      _fadeRoutine = StartCoroutine(GracefulFadeOut());
+    }
+  }
+
+  // Auto-spin waits on this so the next spin doesn't start until a big-win celebration fully resets.
+  internal IEnumerator WaitWinAnimDone()
+  {
+    yield return new WaitUntil(() => !_bigWinActive);
+  }
+
+  // ===== Debug testing (play mode only, gated by debugWinTesting) =====
+  // 1 -> low win (red glow + value lerp)   2 -> big win (yellow + panel + coins)   3 -> reset/skip seq.
+  private void Update()
+  {
+    if (!debugWinTesting) return;
+
+    if (Input.GetKeyDown(KeyCode.Alpha1))
+    {
+      DebugHardReset();
+      StartValueLerp(debugLowWinValue, valueLerpDuration);
+      if (redCanvasGroup != null) redCanvasGroup.DOFade(1f, redFadeInDuration);
+    }
+    else if (Input.GetKeyDown(KeyCode.Alpha2))
+    {
+      DebugHardReset();
+      _bigWinActive = true;
+      _bigWinRoutine = StartCoroutine(BigWinSequence(debugBigWinValue));
+    }
+    else if (Input.GetKeyDown(KeyCode.Alpha3))
+    {
+      // Exercises the real spin-start path: skips/fades a live big win, else just clears.
+      ResetWinForNewSpin();
+    }
+  }
+
+  // Immediately tears down any in-progress celebration so a debug effect can start from a clean state.
+  private void DebugHardReset()
+  {
+    if (_bigWinRoutine != null) { StopCoroutine(_bigWinRoutine); _bigWinRoutine = null; }
+    if (_fadeRoutine != null) { StopCoroutine(_fadeRoutine); _fadeRoutine = null; }
+    _valueTween?.Kill();
+    _bigWinActive = false;
+    _fadingOut = false;
+    _lerpDone = false;
+
+    if (coinPool != null) coinPool.ClearAll();
+    if (redCanvasGroup != null) { redCanvasGroup.DOKill(); redCanvasGroup.alpha = 0f; }
+    if (yellowCanvasGroup != null) { yellowCanvasGroup.DOKill(); yellowCanvasGroup.alpha = 0f; }
+    if (yellowColumnAnims != null)
+      foreach (var a in yellowColumnAnims) if (a != null) a.StopAnimation();
+    if (winPanelCanvasGroup != null) { winPanelCanvasGroup.DOKill(); winPanelCanvasGroup.alpha = 0f; }
+    if (winPanelBG != null)
+    {
+      winPanelBG.DOKill();
+      winPanelBG.localScale = Vector3.zero;
+      Vector2 p = winPanelBG.anchoredPosition;
+      winPanelBG.anchoredPosition = new Vector2(p.x, bgHiddenY);
+    }
+    TextFormatter.ApplyMoneyDigits(winValueTexts, 0);
+    TextFormatter.ApplyMoneyDigits(winDigits, 0);
   }
 
   internal void DisconnectionPopup()

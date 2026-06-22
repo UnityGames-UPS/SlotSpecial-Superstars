@@ -34,6 +34,7 @@ public class GameManager : MonoBehaviour
 
   private double currentBalance;
   [SerializeField] private double currentTotalBet;
+  internal double CurrentTotalBet => currentTotalBet;
   [SerializeField] internal int betCounter = 0;
 
   private Coroutine autoSpinRoutine;
@@ -314,10 +315,10 @@ public class GameManager : MonoBehaviour
     // yield return new WaitForSecondsRealtime(0.5f);
     yield return OnSpinEnd();
 
-    // Auto / free spin loops must wait for the win-animation sequence to fully reset before the
-    // next spin can kick off. Skip() (called from ExecuteSpin / StartAutoSpin / OnSpinStart) makes
-    // this resolve promptly.
-    // if (isAutoSpin) yield return uIManager.WaitWinAnimDone();
+    // Auto / free spin loops must wait for a big-win celebration to fully reset before the next spin
+    // kicks off. Low wins return immediately (no big-win active). A manual spin instead skips the
+    // celebration via OnSpinStart -> ResetWinForNewSpin.
+    if (isAutoSpin) yield return uIManager.WaitWinAnimDone();
   }
 
   IEnumerator StopSpin()
@@ -339,6 +340,9 @@ public class GameManager : MonoBehaviour
       uIManager.LowBalPopup();
       return false;
     }
+    // Reset win visuals for the new spin. If a big-win celebration is still showing this skips it
+    // (snap to final + graceful fade-out) while the spin proceeds.
+    uIManager.ResetWinForNewSpin();
     isSpinning = true;
     return true;
   }
