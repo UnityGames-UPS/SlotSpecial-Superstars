@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using System;
 
 public class GameManager : MonoBehaviour
@@ -12,7 +13,6 @@ public class GameManager : MonoBehaviour
   [SerializeField] private UIManager uIManager;
   [SerializeField] private SocketController socketController;
   [SerializeField] private AudioController audioController;
-  [SerializeField] internal FreeSpinController freeSpinController;
 
   [Header("For Spins")]
   [SerializeField] private Button SlotStart_Button;
@@ -30,6 +30,7 @@ public class GameManager : MonoBehaviour
   [SerializeField] private GameObject AutoSpinGlow;
   [SerializeField] internal bool isAutoSpin;
   [SerializeField] private float autoSpinDelay = 1.5f;
+  [SerializeField] private float autoSpinHoldDuration = 5f; // hold Spin this long (s) to start auto-spin
 
   private double currentBalance;
   [SerializeField] private double currentTotalBet;
@@ -43,11 +44,17 @@ public class GameManager : MonoBehaviour
   [SerializeField] internal bool immediateStop;
   private Coroutine spinRoutine;
 
+  private Coroutine _holdRoutine;
+  private bool _holdConsumed; // true once a hold has started auto-spin, so release won't also single-spin
+
 
   void Start()
   {
-    SetButton(SlotStart_Button, () => ExecuteSpin(), true);
-    SetButton(AutoSpin_Button, () => StartAutoSpin(-1), true);
+    // [Superstars] The Spin button now drives both single-spin (tap) and auto-spin (hold). The
+    // press/hold detection is installed in SetupSpinHoldButton instead of a plain onClick listener.
+    SetupSpinHoldButton();
+    // [Superstars] No separate auto-spin button anymore — auto-spin is started by holding Spin.
+    // SetButton(AutoSpin_Button, () => StartAutoSpin(-1), true);
     SetButton(AutoSpinStop_Button, () => StartCoroutine(StopAutoSpinCoroutine()));
     SetButton(ToatlBetMinus_Button, () => { OnBetChange(false); });
     SetButton(TotalBetPlus_Button, () => { OnBetChange(true); });
@@ -55,20 +62,9 @@ public class GameManager : MonoBehaviour
     SetButton(TurboOFF_Button, () => { ToggleTurboMode(); });
     SetButton(StopSpin_Button, () => StartCoroutine(StopSpin()));
 
-    if (freeSpinController != null)
-    {
-      freeSpinController.gameManager = this;
-      freeSpinController.playButtonAudio = (s) => audioController.Play(s);
-    }
-
     socketController.OnInit = InitGame;
     uIManager.ToggleAudio = audioController.SetMuteAll;
     uIManager.playButtonAudio = (s) => audioController.Play(s);
-    if (uIManager.winAnim != null)
-    {
-      uIManager.winAnim.playAudio = (s) => audioController.Play(s);
-      uIManager.winAnim.fadeAudio = (s, d) => audioController.FadeOut(s, d);
-    }
     uIManager.OnExit = () => socketController.CloseSocket();
     uIManager.OnLowBalConfirm = () => ToggleButtonGrp(true);
     socketController.ShowDisconnectionPopup = uIManager.DisconnectionPopup;
@@ -86,6 +82,72 @@ public class GameManager : MonoBehaviour
       uIManager.playButtonAudio?.Invoke("button");
       action?.Invoke();
     });
+  }
+
+  // Wires press-and-hold on the Spin button: a quick tap runs one spin, holding for
+  // autoSpinHoldDuration starts auto-spin. Uses EventTrigger (added at runtime) because Button.onClick
+  // fires on release and can't distinguish a tap from a hold.
+  private void SetupSpinHoldButton()
+  {
+    if (SlotStart_Button == null) return;
+
+    SlotStart_Button.onClick.RemoveAllListeners();
+
+    var go = SlotStart_Button.gameObject;
+    var trigger = go.GetComponent<EventTrigger>();
+    if (trigger == null) trigger = go.AddComponent<EventTrigger>();
+    trigger.triggers.Clear();
+
+    AddTrigger(trigger, EventTriggerType.PointerDown, OnSpinPointerDown);
+    AddTrigger(trigger, EventTriggerType.PointerUp, OnSpinPointerUp);
+    // Dragging off the button cancels the pending hold so a stray release elsewhere can't spin.
+    AddTrigger(trigger, EventTriggerType.PointerExit, CancelHold);
+  }
+
+  private void AddTrigger(EventTrigger trigger, EventTriggerType type, Action callback)
+  {
+    var entry = new EventTrigger.Entry { eventID = type };
+    entry.callback.AddListener(_ => callback());
+    trigger.triggers.Add(entry);
+  }
+
+  private void OnSpinPointerDown()
+  {
+    // EventTrigger ignores Button.interactable, so guard manually: don't react mid-spin / mid-auto.
+    if (!SlotStart_Button.interactable || isSpinning || isAutoSpin) return;
+
+    _holdConsumed = false;
+    uIManager.playButtonAudio?.Invoke("button");
+
+    if (_holdRoutine != null) StopCoroutine(_holdRoutine);
+    _holdRoutine = StartCoroutine(SpinHoldRoutine());
+  }
+
+  private IEnumerator SpinHoldRoutine()
+  {
+    yield return new WaitForSeconds(autoSpinHoldDuration);
+    _holdRoutine = null;
+
+    if (!SlotStart_Button.interactable || isSpinning || isAutoSpin) yield break;
+
+    _holdConsumed = true; // release will skip the single spin
+    StartAutoSpin(-1);
+  }
+
+  private void OnSpinPointerUp()
+  {
+    CancelHold();
+    // Released before the hold threshold -> normal single spin.
+    if (!_holdConsumed) ExecuteSpin();
+  }
+
+  private void CancelHold()
+  {
+    if (_holdRoutine != null)
+    {
+      StopCoroutine(_holdRoutine);
+      _holdRoutine = null;
+    }
   }
 
   void InitGame()
@@ -112,8 +174,6 @@ public class GameManager : MonoBehaviour
     {
       uIManager.PopulateSymbolsPayout(socketController.InitSymbolData);
     }
-    uIManager.RefreshDiamondPayoutTexts(currentTotalBet);
-    uIManager.PopulateInfoPageDiamondPayouts();
   }
 
   void ExecuteSpin()
@@ -122,11 +182,6 @@ public class GameManager : MonoBehaviour
     // without populating the spinRoutine field, so the null-check below would otherwise let a stray
     // click launch a parallel SpinRoutine that fights the active one for the reel tweens.
     if (isAutoSpin || isSpinning) return;
-
-    // If the win-animation sequence is mid-flight, treat the spin click as a skip so OneSpinFlow's
-    // WaitWinAnimDone gate resolves promptly and we can launch the next spin.
-    if (uIManager.winAnim != null && uIManager.winAnim.IsPlaying)
-      uIManager.winAnim.Skip();
 
     if (spinRoutine != null)
     {
@@ -140,8 +195,6 @@ public class GameManager : MonoBehaviour
   internal void StartAutoSpin(int count)
   {
     if (isAutoSpin || isSpinning) return;
-    if (uIManager.winAnim != null && uIManager.winAnim.IsPlaying)
-      uIManager.winAnim.Skip();
     _autoUntilFeature = (count < 0);
     _autoSpinRemaining = count;
     isAutoSpin = true;
@@ -260,10 +313,11 @@ public class GameManager : MonoBehaviour
     yield return OnSpin();
     // yield return new WaitForSecondsRealtime(0.5f);
     yield return OnSpinEnd();
+
     // Auto / free spin loops must wait for the win-animation sequence to fully reset before the
     // next spin can kick off. Skip() (called from ExecuteSpin / StartAutoSpin / OnSpinStart) makes
     // this resolve promptly.
-    if (isAutoSpin) yield return uIManager.WaitWinAnimDone();
+    // if (isAutoSpin) yield return uIManager.WaitWinAnimDone();
   }
 
   IEnumerator StopSpin()
@@ -280,12 +334,6 @@ public class GameManager : MonoBehaviour
 
   bool OnSpinStart()
   {
-    uIManager.ResetWinAnimation();
-    // Tear down any leftover winning-row anim from the previous spin so a click mid-presentation
-    // resets the row immediately (size/loop), then fire the one-shot shine across all rows.
-    uIManager.StopDiamondPayoutRowWin();
-    uIManager.PlayDiamondPayoutShineOverlay();
-
     if (currentBalance < currentTotalBet)
     {
       uIManager.LowBalPopup();
@@ -382,6 +430,5 @@ public class GameManager : MonoBehaviour
     currentTotalBet = socketController.InitLineBetData.bets[betCounter];
     TextFormatter.ApplyMoneyDigits(totalBetDigits, currentTotalBet);
     uIManager.PopulateSymbolsPayout(socketController.InitSymbolData);
-    uIManager.RefreshDiamondPayoutTexts(currentTotalBet);
   }
 }
