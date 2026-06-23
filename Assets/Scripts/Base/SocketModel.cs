@@ -65,12 +65,15 @@ public class Tournament
   public bool isActive;
   public long startTime;
   public long currentTime;
+  public long endTime;        // epoch ms
+  public long serverTime;     // epoch ms — server "now"; used to sync the timer + pool lerp across clients
   public int durationSeconds;
   public double startPool;
   public double targetPool;
-  public List<TopPlayer> topPlayers;
+  public List<TopPlayer> topPlayers; // ignored — leaderboard rows use our own dummy data
   public int playerRank;
   public double playerScore;
+  public double playerWinAmount;
 }
 
 [Serializable]

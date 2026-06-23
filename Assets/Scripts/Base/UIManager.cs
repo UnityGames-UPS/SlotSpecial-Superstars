@@ -91,6 +91,7 @@ public class UIManager : MonoBehaviour
   private Coroutine _fadeRoutine; // tracks a standalone GracefulFadeOut (skip path / debug)
   private bool _bigWinActive; // true from big-win start until fully reset (gates auto-spin + skip)
   private bool _lerpDone;
+  private bool _valueLerping; // true while the win count-up tween runs (gates auto-spin for low wins too)
   private bool _fadingOut;
 
   internal Action<bool> ToggleAudio;
@@ -267,13 +268,14 @@ public class UIManager : MonoBehaviour
     _valueTween?.Kill();
     _displayValue = 0;
     _lerpDone = false;
+    _valueLerping = true;
     _targetWin = target;
     _valueTween = DOTween.To(() => _displayValue, v =>
     {
       _displayValue = v;
       TextFormatter.ApplyMoneyDigits(winValueTexts, v); // panel
       TextFormatter.ApplyMoneyDigits(winDigits, v);     // HUD
-    }, target, duration).SetEase(Ease.Linear).OnComplete(() => _lerpDone = true);
+    }, target, duration).SetEase(Ease.Linear).OnComplete(() => { _lerpDone = true; _valueLerping = false; });
   }
 
   private IEnumerator BigWinSequence(double winValue)
@@ -356,9 +358,13 @@ public class UIManager : MonoBehaviour
   internal void ResetWinForNewSpin()
   {
     _valueTween?.Kill();
+    _valueLerping = false;
     TextFormatter.ApplyMoneyDigits(winValueTexts, 0);
     TextFormatter.ApplyMoneyDigits(winDigits, 0);
-    if (redCanvasGroup != null) redCanvasGroup.alpha = 0f;
+    // Kill the in-flight fade-in before zeroing alpha — otherwise a still-running DOFade from the
+    // previous low win keeps animating alpha back to 1 after this reset, leaving red lit through the
+    // next spin (it would only appear to clear on the spin after that). Mirrors the yellow reset below.
+    if (redCanvasGroup != null) { redCanvasGroup.DOKill(); redCanvasGroup.alpha = 0f; }
 
     // Stop the looping yellow column overlays — they run until this next spin begins.
     if (yellowCanvasGroup != null) { yellowCanvasGroup.DOKill(); yellowCanvasGroup.alpha = 0f; }
@@ -381,7 +387,9 @@ public class UIManager : MonoBehaviour
   // Auto-spin waits on this so the next spin doesn't start until a big-win celebration fully resets.
   internal IEnumerator WaitWinAnimDone()
   {
-    yield return new WaitUntil(() => !_bigWinActive);
+    // Wait for both the big-win celebration AND the (low-win) value count-up so auto-spin doesn't
+    // truncate the count-up by starting the next spin (which kills the tween in ResetWinForNewSpin).
+    yield return new WaitUntil(() => !_bigWinActive && !_valueLerping);
   }
 
   // ===== Debug testing (play mode only, gated by debugWinTesting) =====
@@ -418,6 +426,7 @@ public class UIManager : MonoBehaviour
     _bigWinActive = false;
     _fadingOut = false;
     _lerpDone = false;
+    _valueLerping = false;
 
     if (coinPool != null) coinPool.ClearAll();
     if (redCanvasGroup != null) { redCanvasGroup.DOKill(); redCanvasGroup.alpha = 0f; }

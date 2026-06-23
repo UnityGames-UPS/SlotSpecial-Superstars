@@ -23,7 +23,10 @@ public class SlotController : MonoBehaviour
   [Header("Slots Transforms")]
   [SerializeField] private RectTransform[] Slot_Transform;
 
-  private List<Tweener> alltweens = new List<Tweener>();
+  // Indexed by column so a tween always maps to its own Slot_Transform.
+  // (Do NOT Add in completion-callback order: intro moves finish at different
+  //  times depending on each reel's previous rest position, which scrambled the order.)
+  private Tweener[] alltweens = new Tweener[0];
 
   void Awake()
   {
@@ -33,6 +36,7 @@ public class SlotController : MonoBehaviour
   internal IEnumerator StartSpin()
   {
     KillAllTweens();
+    alltweens = new Tweener[Slot_Transform.Length];
 
     List<Tween> initTweens = new();
     audioController.Play("spinning");
@@ -138,7 +142,7 @@ public class SlotController : MonoBehaviour
       Tweener tweener = slotTransform.DOLocalMoveY(SpinBottomY, DurationFor(SpinTopY, SpinBottomY))
         .SetLoops(-1, LoopType.Restart)
         .SetEase(Ease.Linear);
-      alltweens.Add(tweener);
+      alltweens[index] = tweener;
     });
     return seq;
   }
@@ -148,18 +152,18 @@ public class SlotController : MonoBehaviour
     float SpinTopY = index != 3 ? BigSpinTopY : SmallSpinTopY;
     float RestY = index != 3 ?  landOnBlank ? BigSpinBlankRestY : BigSpinRestY   : SmallRestY;
 
-    alltweens[index].Kill();
+    alltweens[index]?.Kill();
     slotTransform.localPosition = new Vector2(slotTransform.localPosition.x, SpinTopY);
     alltweens[index] = slotTransform.DOLocalMoveY(RestY, DurationFor(SpinTopY, RestY)).SetEase(Ease.OutBack, 0.9f);
   }
 
   private void KillAllTweens()
   {
-    for (int i = 0; i < alltweens.Count; i++)
+    for (int i = 0; i < alltweens.Length; i++)
     {
-      alltweens[i].Kill();
+      alltweens[i]?.Kill();
+      alltweens[i] = null;
     }
-    alltweens.Clear();
   }
   #endregion
 }

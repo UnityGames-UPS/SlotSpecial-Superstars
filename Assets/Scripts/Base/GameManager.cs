@@ -21,13 +21,12 @@ public class GameManager : MonoBehaviour
   [SerializeField] private Button TotalBetPlus_Button;
   [SerializeField] private TMP_Text[] totalBetDigits; // per-digit BET HUD (left-to-right, dot excluded)
   [SerializeField] private bool isSpinning;
+  internal bool IsSpinning => isSpinning;
   [SerializeField] private Button TurboON_Button;
   [SerializeField] private Button TurboOFF_Button;
 
   [Header("For Auto Spins")]
-  [SerializeField] private Button AutoSpin_Button;
   [SerializeField] private Button AutoSpinStop_Button;
-  [SerializeField] private GameObject AutoSpinGlow;
   [SerializeField] internal bool isAutoSpin;
   [SerializeField] private float autoSpinDelay = 1.5f;
   [SerializeField] private float autoSpinHoldDuration = 5f; // hold Spin this long (s) to start auto-spin
@@ -400,19 +399,16 @@ public class GameManager : MonoBehaviour
 
   void SetAutoSpinUI(bool autoActive)
   {
-    if (AutoSpin_Button) AutoSpin_Button.gameObject.SetActive(!autoActive);
     if (AutoSpinStop_Button)
     {
       AutoSpinStop_Button.gameObject.SetActive(autoActive);
       AutoSpinStop_Button.interactable = autoActive;
     }
-    if (AutoSpinGlow) AutoSpinGlow.SetActive(autoActive);
   }
 
   internal void ToggleButtonGrp(bool toggle)
   {
     if (SlotStart_Button) SlotStart_Button.interactable = toggle;
-    if (AutoSpin_Button) AutoSpin_Button.interactable = toggle;
     if (ToatlBetMinus_Button) ToatlBetMinus_Button.interactable = toggle;
     if (TotalBetPlus_Button) TotalBetPlus_Button.interactable = toggle;
     uIManager.paytable_Button.interactable = toggle;

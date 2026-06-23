@@ -1,0 +1,37 @@
+{
+  "success": true,
+  "id": "TournamentPingData",
+  "tournament": {
+    "tournamentId": "SL-ST-COOLDOWN-1782191962082",
+    "isActive": false,
+    "startTime": 1782191962082,
+    "durationSeconds": 30,
+    "endTime": 1782191992082,
+    "serverTime": 1782191964088,
+    "startPool": 0,
+    "targetPool": 0,
+    "playerRank": -1,
+    "playerWinAmount": 0,
+    "previousResult": {
+      "playerRank": -1,
+      "playerWinAmount": 0,
+      "topPlayers": [
+        {
+          "id": "ae23a84aac60b19ecef27fac",
+          "playerRank": 1,
+          "playerWinAmount": 251.031
+        },
+        {
+          "id": "4c75aea78a4fa825af1193cd",
+          "playerRank": 2,
+          "playerWinAmount": 250.41
+        },
+        {
+          "id": "0d5e2c30c330970a58f63f74",
+          "playerRank": 3,
+          "playerWinAmount": 250.273
+        }
+      ]
+    }
+  }
+}

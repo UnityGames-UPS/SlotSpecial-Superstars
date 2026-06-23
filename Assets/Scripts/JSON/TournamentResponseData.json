@@ -1,0 +1,33 @@
+{
+  "success": true,
+  "id": "TournamentPingData",
+  "tournament": {
+    "tournamentId": "SL-ST-1782191609467",
+    "isActive": true,
+    "startTime": 1782191609467,
+    "durationSeconds": 300,
+    "endTime": 1782191909467,
+    "serverTime": 1782191609508,
+    "startPool": 0.01,
+    "targetPool": 6.5,
+    "playerRank": -1,
+    "playerWinAmount": 0,
+    "topPlayers": [
+      {
+        "id": "ae23a84aac60b19ecef27fac",
+        "playerRank": 1,
+        "playerWinAmount": 24.997
+      },
+      {
+        "id": "0d5e2c30c330970a58f63f74",
+        "playerRank": 2,
+        "playerWinAmount": 24.995
+      },
+      {
+        "id": "4c75aea78a4fa825af1193cd",
+        "playerRank": 3,
+        "playerWinAmount": 24.992
+      }
+    ]
+  }
+}
