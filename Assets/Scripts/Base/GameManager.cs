@@ -429,6 +429,7 @@ public class GameManager : MonoBehaviour
     }
     currentTotalBet = socketController.InitLineBetData.bets[betCounter];
     TextFormatter.ApplyMoneyDigits(totalBetDigits, currentTotalBet);
-    uIManager.PopulateSymbolsPayout(socketController.InitSymbolData);
+    // Paytable payouts are bet-independent ("BET x {payout}") and populated only at init, so no
+    // re-populate on bet change.
   }
 }

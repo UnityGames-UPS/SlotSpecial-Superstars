@@ -7896,27 +7896,38 @@ MonoBehaviour:
   paytableExit_Button: {fileID: 175694440}
   paytableBgExit_Button: {fileID: 1563961368}
   SymbolsTexts:
-  - symbolName: Scatter
+  - symbolName: Star Seven
     symbolText:
-    - {fileID: 0}
-  - symbolName: Wild
+    - {fileID: 515126107}
+  - symbolName: purple Seven
     symbolText:
-    - {fileID: 0}
-  - symbolName: GoldA
+    - {fileID: 294049237}
+  - symbolName: Blue Seven
     symbolText:
-    - {fileID: 0}
-  - symbolName: GoldB
+    - {fileID: 672451035}
+  - symbolName: Bar Seven
     symbolText:
-    - {fileID: 0}
-  - symbolName: Bar3
+    - {fileID: 1464246958}
+  - symbolName: twoStarSevens
     symbolText:
-    - {fileID: 0}
-  - symbolName: Bar2
+    - {fileID: 1773885214}
+  - symbolName: oneStarSeven
     symbolText:
-    - {fileID: 0}
-  - symbolName: Bar3
+    - {fileID: 1819792692}
+  - symbolName: Triple Bar
     symbolText:
-    - {fileID: 0}
+    - {fileID: 1485645062}
+  - symbolName: Double Bar
+    symbolText:
+    - {fileID: 1611351014}
+  - symbolName: anyMixed
+    symbolText:
+    - {fileID: 1272268432}
+    - {fileID: 61201086}
+    - {fileID: 1784306471}
+  - symbolName: anyBars
+    symbolText:
+    - {fileID: 1329499276}
   SoundON_Button: {fileID: 305222864}
   SoundOFF_Button: {fileID: 1651859494}
   LowBalancePopup_Object: {fileID: 541364250}
@@ -10381,7 +10392,7 @@ MonoBehaviour:
   UiManager: {fileID: 377874625}
   isResultdone: 0
   JSManager: {fileID: 500036493}
-  testToken: 012e283baeb148518c71c90f26cb4294
+  testToken: 1155ae0a80514b599f225f1d5ee33d94
   tournamentPollInterval: 5
 --- !u!114 &500036493
 MonoBehaviour:
@@ -21712,7 +21723,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -0.00025365042}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 2644.81}
   m_Pivot: {x: 0, y: 1}
 --- !u!1 &1098491422
@@ -22208,8 +22219,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1885517869}
   m_HandleRect: {fileID: 1885517868}
   m_Direction: 2
-  m_Value: 1.0000001
-  m_Size: 0.28479707
+  m_Value: 1
+  m_Size: 0.28481063
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -39776,7 +39787,7 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1335620819}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0.7152034}
+  m_AnchorMin: {x: 0, y: 0.71518934}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 20, y: 20}

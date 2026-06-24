@@ -178,26 +178,49 @@ public class UIManager : MonoBehaviour
 
   internal bool IsLowBalPopupOpen => LowBalancePopup_Object != null && LowBalancePopup_Object.activeSelf;
 
+  // Populated only at init (not on bet change): each paytable row shows a bet-independent multiplier
+  // label "BET x {payout}". Names are matched against the uiData symbols first, then the
+  // features.anyPayouts entries (anyBars, anyMixed, ...).
   internal void PopulateSymbolsPayout(UiData uiData)
   {
     if (uiData?.paylines?.symbols == null || SymbolsTexts == null) return;
-    var bets = socketController?.InitLineBetData?.bets;
-    if (bets == null || gameManager == null) return;
-    if (gameManager.betCounter < 0 || gameManager.betCounter >= bets.Count) return;
-    double lineBet = bets[gameManager.betCounter];
+    var anyPayouts = socketController?.InitData?.features?.anyPayouts;
 
     foreach (var symbolText in SymbolsTexts)
     {
       if (symbolText?.symbolText == null) continue;
-      Symbol symbol = uiData.paylines.symbols.FirstOrDefault(s => s.name == symbolText.symbolName);
-      if (symbol == null || symbol.payout <= 0)
+      double? payout = ResolvePayout(symbolText.symbolName, uiData, anyPayouts);
+      if (payout == null || payout.Value <= 0)
       {
         symbolText.symbolText.ForEach(t => { if (t != null) t.text = ""; });
         continue;
       }
-      string formatted = (symbol.payout * lineBet).ToString("0.##");
+      string formatted = "BET x " + payout.Value.ToString("0.##");
       symbolText.symbolText.ForEach(t => { if (t != null) t.text = formatted; });
     }
+  }
+
+  // Resolves a paytable row name to its payout: symbols first, then anyPayouts by raw JSON key.
+  // Matching is case-insensitive so backend casing changes don't break the lookup. Returns null
+  // when the name matches neither.
+  private double? ResolvePayout(string name, UiData uiData, AnyPayouts anyPayouts)
+  {
+    if (string.IsNullOrEmpty(name)) return null;
+    Symbol symbol = uiData.paylines.symbols.FirstOrDefault(
+      s => string.Equals(s.name, name, StringComparison.OrdinalIgnoreCase));
+    if (symbol != null) return symbol.payout;
+    if (anyPayouts != null)
+    {
+      switch (name.ToLowerInvariant())
+      {
+        case "anybars": return anyPayouts.anyBars;
+        case "anymixed": return anyPayouts.anyMixed;
+        case "anysevens": return anyPayouts.anySevens;
+        case "onestarseven": return anyPayouts.oneStarSeven;
+        case "twostarsevens": return anyPayouts.twoStarSevens;
+      }
+    }
+    return null;
   }
 
   private void CallOnExitFunction()
@@ -449,6 +472,7 @@ public class UIManager : MonoBehaviour
   {
     if (!isExit)
     {
+      if(ReconectionPopup_Object.activeInHierarchy) ReconectionPopup_Object.SetActive(true);
       OpenPopup(DisconnectPopup_Object);
     }
   }
