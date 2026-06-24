@@ -39,7 +39,7 @@ public class SlotController : MonoBehaviour
     alltweens = new Tweener[Slot_Transform.Length];
 
     List<Tween> initTweens = new();
-    audioController.Play("spinning");
+    audioController.Play("reelspin");
     for (int i = 0; i < Slot_Transform.Length; i++)
     {
       initTweens.Add(InitializeTweening(Slot_Transform[i], i));
@@ -68,14 +68,23 @@ public class SlotController : MonoBehaviour
 
   internal IEnumerator StopSpin(Action playFallAudio, List<List<string>> resultData)
   {
+    bool playedStopAtOnce = false;
+
     for (int i = 0; i < Slot_Transform.Length; i++)
     {
       StopTweening(Slot_Transform[i], i, resultData[1][i] == "0");
 
       if (!gameManager.immediateStop)
       {
+        // Staggered stop: one stop sfx per column as it lands.
         playFallAudio?.Invoke();
         yield return new WaitForSecondsRealtime(gameManager.turboMode ? 0.2f : 0.6f);
+      }
+      else if (!playedStopAtOnce)
+      {
+        // Reels settle all at once (turbo / stop button) — play the stop sfx a single time.
+        playFallAudio?.Invoke();
+        playedStopAtOnce = true;
       }
     }
     yield return alltweens[^2].WaitForCompletion();

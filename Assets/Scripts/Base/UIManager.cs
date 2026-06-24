@@ -158,7 +158,7 @@ public class UIManager : MonoBehaviour
     button.onClick.RemoveAllListeners();
     button.onClick.AddListener(() =>
     {
-      playButtonAudio?.Invoke("button");
+      playButtonAudio?.Invoke("uibutton");
       action?.Invoke();
     });
   }
@@ -274,11 +274,13 @@ public class UIManager : MonoBehaviour
     bool bigWin = totalBet > 0 && winValue >= winThreshold * totalBet;
     if (bigWin)
     {
+      audioController?.Play("yellowwin");
       _bigWinActive = true;
       _bigWinRoutine = StartCoroutine(BigWinSequence(winValue));
     }
     else
     {
+      audioController?.Play("redwin");
       StartValueLerp(winValue, valueLerpDuration);
       if (redCanvasGroup != null) redCanvasGroup.DOFade(1f, redFadeInDuration); // fade in and keep on
     }
@@ -389,10 +391,12 @@ public class UIManager : MonoBehaviour
     // next spin (it would only appear to clear on the spin after that). Mirrors the yellow reset below.
     if (redCanvasGroup != null) { redCanvasGroup.DOKill(); redCanvasGroup.alpha = 0f; }
 
-    // Stop the looping yellow column overlays — they run until this next spin begins.
+    // Stop the looping yellow column overlays — they run until this next spin begins. The looping
+    // yellowwin audio is tied to these overlays, so stop it here too as the animation resets.
     if (yellowCanvasGroup != null) { yellowCanvasGroup.DOKill(); yellowCanvasGroup.alpha = 0f; }
     if (yellowColumnAnims != null)
       foreach (var a in yellowColumnAnims) if (a != null) a.StopAnimation();
+    audioController?.Stop("yellowwin");
 
     if (_bigWinActive && !_fadingOut)
     {
@@ -456,6 +460,7 @@ public class UIManager : MonoBehaviour
     if (yellowCanvasGroup != null) { yellowCanvasGroup.DOKill(); yellowCanvasGroup.alpha = 0f; }
     if (yellowColumnAnims != null)
       foreach (var a in yellowColumnAnims) if (a != null) a.StopAnimation();
+    audioController?.Stop("yellowwin");
     if (winPanelCanvasGroup != null) { winPanelCanvasGroup.DOKill(); winPanelCanvasGroup.alpha = 0f; }
     if (winPanelBG != null)
     {

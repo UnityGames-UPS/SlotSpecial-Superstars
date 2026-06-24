@@ -56,8 +56,8 @@ public class GameManager : MonoBehaviour
     // [Superstars] No separate auto-spin button anymore — auto-spin is started by holding Spin.
     // SetButton(AutoSpin_Button, () => StartAutoSpin(-1), true);
     SetButton(AutoSpinStop_Button, () => StartCoroutine(StopAutoSpinCoroutine()));
-    SetButton(ToatlBetMinus_Button, () => { OnBetChange(false); });
-    SetButton(TotalBetPlus_Button, () => { OnBetChange(true); });
+    SetButton(ToatlBetMinus_Button, () => { OnBetChange(false); }, "betminus");
+    SetButton(TotalBetPlus_Button, () => { OnBetChange(true); }, "betplus");
     SetButton(TurboON_Button, () => { ToggleTurboMode(); });
     SetButton(TurboOFF_Button, () => { ToggleTurboMode(); });
     SetButton(StopSpin_Button, () => StartCoroutine(StopSpin()));
@@ -72,14 +72,14 @@ public class GameManager : MonoBehaviour
     ApplyTurboButtonVisibility();
   }
 
-  private void SetButton(Button button, Action action, bool slotButton = false)
+  private void SetButton(Button button, Action action, string clickAudio = "uibutton")
   {
     if (button == null) return;
 
     button.onClick.RemoveAllListeners();
     button.onClick.AddListener(() =>
     {
-      uIManager.playButtonAudio?.Invoke("button");
+      if (!string.IsNullOrEmpty(clickAudio)) uIManager.playButtonAudio?.Invoke(clickAudio);
       action?.Invoke();
     });
   }
@@ -117,7 +117,7 @@ public class GameManager : MonoBehaviour
     if (!SlotStart_Button.interactable || isSpinning || isAutoSpin) return;
 
     _holdConsumed = false;
-    uIManager.playButtonAudio?.Invoke("button");
+    uIManager.playButtonAudio?.Invoke("uibutton");
 
     if (_holdRoutine != null) StopCoroutine(_holdRoutine);
     _holdRoutine = StartCoroutine(SpinHoldRoutine());
@@ -382,6 +382,8 @@ public class GameManager : MonoBehaviour
       }
     }
 
+    // Reels are about to settle — kill the looping spin sound so it doesn't run under the stop sfx.
+    audioController.Stop("reelspin");
     yield return slotManager.StopSpin(() => audioController.Play("reelstop"), socketController.ResultData.matrix);
     immediateStop = false;
 

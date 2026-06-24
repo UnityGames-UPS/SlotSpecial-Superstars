@@ -17,7 +17,8 @@ public class AudioController : MonoBehaviour
   }
 
   [SerializeField] private List<AudioEntry> entries = new List<AudioEntry>();
-  [SerializeField] private string startupType = "bg";
+  // [Superstars] No background track for this game — leave empty so nothing auto-plays on Awake.
+  [SerializeField] private string startupType = "";
 
   private readonly Dictionary<string, AudioEntry> map = new Dictionary<string, AudioEntry>();
 
