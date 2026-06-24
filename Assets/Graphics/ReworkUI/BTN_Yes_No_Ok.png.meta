@@ -128,7 +128,7 @@ TextureImporter:
         serializedVersion: 2
         x: 0
         y: 202
-        width: 247
+        width: 234
         height: 100
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -148,9 +148,9 @@ TextureImporter:
       name: BTN_Yes_No_Ok_1
       rect:
         serializedVersion: 2
-        x: 247
+        x: 252
         y: 202
-        width: 247
+        width: 234
         height: 100
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -170,9 +170,9 @@ TextureImporter:
       name: BTN_Yes_No_Ok_2
       rect:
         serializedVersion: 2
-        x: 494
+        x: 506
         y: 202
-        width: 247
+        width: 234
         height: 100
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -194,7 +194,7 @@ TextureImporter:
         serializedVersion: 2
         x: 0
         y: 102
-        width: 247
+        width: 234
         height: 100
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -214,9 +214,9 @@ TextureImporter:
       name: BTN_Yes_No_Ok_4
       rect:
         serializedVersion: 2
-        x: 247
+        x: 252
         y: 102
-        width: 247
+        width: 234
         height: 100
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -236,9 +236,9 @@ TextureImporter:
       name: BTN_Yes_No_Ok_5
       rect:
         serializedVersion: 2
-        x: 494
+        x: 506
         y: 102
-        width: 247
+        width: 234
         height: 100
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -260,7 +260,7 @@ TextureImporter:
         serializedVersion: 2
         x: 0
         y: 2
-        width: 247
+        width: 234
         height: 100
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -280,9 +280,9 @@ TextureImporter:
       name: BTN_Yes_No_Ok_7
       rect:
         serializedVersion: 2
-        x: 247
+        x: 252
         y: 2
-        width: 247
+        width: 234
         height: 100
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -302,9 +302,9 @@ TextureImporter:
       name: BTN_Yes_No_Ok_8
       rect:
         serializedVersion: 2
-        x: 494
+        x: 506
         y: 2
-        width: 247
+        width: 234
         height: 100
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
