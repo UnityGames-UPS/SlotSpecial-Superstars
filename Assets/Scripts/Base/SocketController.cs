@@ -37,11 +37,10 @@ public class SocketController : MonoBehaviour
   private Coroutine PingRoutine;
   private string myAuth = null;
 
-  [SerializeField] private float tournamentPollInterval = 5f;
-  private Coroutine tournamentPollRoutine;
-  // Tournament data arrives on init / result / ping. fromResult=true only for spin results, which the
-  // TournamentController uses to flip the "has spun" state. The controller self-wires this in its Start.
-  internal Action<Tournament, bool> OnTournamentUpdate;
+  // Tournament is now fully client-side simulated (backend no longer sends tournament/rank data).
+  // We only surface a "spin result arrived" signal so TournamentController can accumulate the win from
+  // ResultData.payload.currentWinning. The controller self-wires this in its Start.
+  internal Action OnSpinResult;
 
   private bool hasFocus = true;
   private float focusLostTime = 0f;
@@ -152,7 +151,6 @@ public class SocketController : MonoBehaviour
     waitingForPong = false;
     missedPongs = 0;
     SendPing();
-    ResetTournamentPoll();
   }
 
   private void OnDisconnected()
@@ -160,7 +158,6 @@ public class SocketController : MonoBehaviour
     Debug.LogWarning("⚠️ Disconnected from server.");
     isConnected = false;
     ResetPingRoutine();
-    StopTournamentPoll();
     UiManager.DisconnectionPopup();
   }
 
@@ -232,30 +229,6 @@ public class SocketController : MonoBehaviour
     }
   }
 
-  // Dedicated tournament poll: requests fresh tournament data every tournamentPollInterval seconds.
-  // Separate from the keepalive ping so the cadence can be tuned and the window restarted on spin.
-  internal void ResetTournamentPoll()
-  {
-    StopTournamentPoll();
-    tournamentPollRoutine = StartCoroutine(TournamentPollCheck());
-  }
-
-  void StopTournamentPoll()
-  {
-    if (tournamentPollRoutine != null)
-      StopCoroutine(tournamentPollRoutine);
-    tournamentPollRoutine = null;
-  }
-
-  private IEnumerator TournamentPollCheck()
-  {
-    while (true)
-    {
-      SendData("request", new { type = "TOURNAMENT_PING", payload = new { } });
-      yield return new WaitForSeconds(tournamentPollInterval);
-    }
-  }
-
   internal void SendData(string eventName, object message = null)
   {
     if (GameSocket == null || !GameSocket.IsOpen)
@@ -289,7 +262,6 @@ public class SocketController : MonoBehaviour
     isExiting = true;
     RaycastBlocker.SetActive(true);
     ResetPingRoutine();
-    StopTournamentPoll();
 
     manager?.Close();
     manager = null;
@@ -383,16 +355,12 @@ public class SocketController : MonoBehaviour
           isResultdone = true;
           break;
         }
-      case "TournamentPingData":
-        {
-
-          break;
-        }
     }
 
-    // Tournament data rides along on init / result / ping. fromResult is true only for spin results.
-    if (myData.tournament != null)
-      OnTournamentUpdate?.Invoke(myData.tournament, id == "ResultData");
+    // A spin result is the only signal the client-side tournament needs: it reads this result's
+    // win (ResultData.payload.currentWinning) and accumulates it into the tournament total.
+    if (id == "ResultData")
+      OnSpinResult?.Invoke();
   }
 
   private void PopulateSlotSocket()
@@ -408,8 +376,6 @@ public class SocketController : MonoBehaviour
   internal void AccumulateResult(int currBet)
   {
     isResultdone = false;
-    // The spin result carries fresh tournament data, so restart the 5s poll window from this moment.
-    ResetTournamentPoll();
     MessageData message = new MessageData();
     message.type = "SPIN";
     message.payload.betIndex = currBet;

@@ -36,6 +36,7 @@ public class SlotController : MonoBehaviour
   internal IEnumerator StartSpin()
   {
     KillAllTweens();
+    FillMultiplierColumn();
     alltweens = new Tweener[Slot_Transform.Length];
 
     List<Tween> initTweens = new();
@@ -119,6 +120,19 @@ public class SlotController : MonoBehaviour
     }
   }
   
+  // The 4th reel is the multiplier column: it must only ever display multiplier
+  // symbols (IDs 8-11). Refill EVERY cell (including result cells) so a stale/buggy
+  // non-multiplier left by PopulateSlotMatrix can't scroll past while the reel spins.
+  private void FillMultiplierColumn()
+  {
+    SlotImage column = allMatrix[^1];
+    for (int j = 0; j < column.slotImages.Count; j++)
+    {
+      int randomIndex = UnityEngine.Random.Range(8, iconImages.Length);
+      column.slotImages[j].SetIcon(ID: randomIndex, image: iconImages[randomIndex]);
+    }
+  }
+
   // Reel travel speed in local units/second. Durations are derived from this so
   // every move (intro, loop, stop) runs at a constant speed regardless of distance.
   [SerializeField] private float reelSpeed = 2857f;

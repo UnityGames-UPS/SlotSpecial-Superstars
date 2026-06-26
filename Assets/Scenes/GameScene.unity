@@ -10134,8 +10134,7 @@ MonoBehaviour:
   UiManager: {fileID: 377874625}
   isResultdone: 0
   JSManager: {fileID: 500036493}
-  testToken: 1155ae0a80514b599f225f1d5ee33d94
-  tournamentPollInterval: 5
+  testToken: 1d0e232fa88944d199248bb0b3a62247
 --- !u!114 &500036493
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16860,6 +16859,7 @@ MonoBehaviour:
   - {fileID: 1478988597}
   - {fileID: 65418986}
   - {fileID: 398083947}
+  - {fileID: 446883846}
   - {fileID: 2121813610}
   - {fileID: 157282766}
   - {fileID: 70310445}
@@ -43410,6 +43410,16 @@ MonoBehaviour:
     winToRankLabel: {fileID: 1694162900}
     youIndicator: {fileID: 1458974667}
     redOverlay: {fileID: 668713074}
+  tournamentDurationSeconds: 300
+  cooldownSeconds: 30
+  rankMin: 10
+  rankMax: 50
+  rankWalkInterval: 4
+  rankWalkMaxStep: 3
+  poolStartMin: 0
+  poolStartMax: 0
+  poolTargetMin: 5
+  poolTargetMax: 6
   dummyBaseRank: 150
   avatarPool:
   - {fileID: 21300000, guid: 0fcfb9c7ee8fd4a29b0e89aa0c2cc724, type: 3}
