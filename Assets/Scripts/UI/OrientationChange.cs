@@ -61,7 +61,7 @@ public class OrientationChange : MonoBehaviour
         else if (currentAspectRatio >= 1.5f && currentAspectRatio < 1.6f)
           targetMatch = 0.34f;   // ~1.5
         else if (currentAspectRatio >= 1.6f && currentAspectRatio < 1.85f)
-          targetMatch = 0.53f;    // ~2.0 range
+          targetMatch = 0.429f;    // ~2.0 range
         else if (currentAspectRatio >= 1.85 && currentAspectRatio < 2.4)
           targetMatch = 0.5f;
         else if(currentAspectRatio >= 2.4 && currentAspectRatio < 2.7)
