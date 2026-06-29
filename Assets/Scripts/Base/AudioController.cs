@@ -22,6 +22,9 @@ public class AudioController : MonoBehaviour
 
   private readonly Dictionary<string, AudioEntry> map = new Dictionary<string, AudioEntry>();
 
+  // Remembers the user's sound-toggle preference so focus regain doesn't override it.
+  private bool userMuted;
+
   private void Awake()
   {
     foreach (var entry in entries)
@@ -81,15 +84,16 @@ public class AudioController : MonoBehaviour
 
   internal void SetMuteAll(bool mute)
   {
+    userMuted = mute;
     foreach (var entry in entries) entry.source.mute = mute;
   }
 
   private void OnApplicationFocus(bool focus)
   {
+    // On focus regain restore the user's preference instead of unconditionally unmuting.
     foreach (var entry in entries)
     {
-      if (focus) entry.source.mute = false;
-      else entry.source.mute = true;
+      entry.source.mute = focus ? userMuted : true;
     }
   }
 }
