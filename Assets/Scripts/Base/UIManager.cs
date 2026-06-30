@@ -281,6 +281,7 @@ public class UIManager : MonoBehaviour
     else
     {
       audioController?.Play("redwin");
+      audioController?.Play("yellowwin");
       StartValueLerp(winValue, valueLerpDuration);
       if (redCanvasGroup != null) redCanvasGroup.DOFade(1f, redFadeInDuration); // fade in and keep on
     }
