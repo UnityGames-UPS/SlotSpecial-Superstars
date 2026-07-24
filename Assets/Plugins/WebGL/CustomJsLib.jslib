@@ -3,7 +3,22 @@ mergeInto(LibraryManager.library, {
       var gameObjectName = UTF8ToString(gameObjectNamePtr);
       console.log('[JS] RegisterVisibilityChangeListener called for GameObject:', gameObjectName);
 
+      function setUnityAudioSuspended(suspended) {
+          try {
+              var wa = (typeof WEBAudio !== 'undefined') ? WEBAudio
+                     : (typeof Module !== 'undefined' && Module.WEBAudio) ? Module.WEBAudio
+                     : null;
+              if (!wa || !wa.audioContext) return;
+              if (suspended) {
+                  if (wa.audioContext.state === 'running') wa.audioContext.suspend();
+              } else {
+                  if (wa.audioContext.state === 'suspended') wa.audioContext.resume();
+              }
+          } catch (err) { console.warn('[JS] Unity audio suspend/resume failed:', err); }
+      }
+
       function sendFocusToUnity(focused) {
+        setUnityAudioSuspended(!focused);
         try {
           var value = focused ? '1' : '0';
           if (typeof SendMessage === 'function') {

@@ -43,34 +43,31 @@
     const canvas=document.querySelector("#unity-canvas");
 
     function resizeCanvas() {
-      const aspectRatio = 16 / 9; // Aspect ratio of the canvas
-      let windowWidth = window.innerWidth;
-      let windowHeight = window.innerHeight;
-
-      if (windowWidth < windowHeight) {
-        let canvasWidth = windowWidth;
-        let canvasHeight = canvasWidth / aspectRatio;
-
-        if (canvasHeight > windowHeight) {
-          canvasHeight = windowHeight;
-          canvasWidth = canvasHeight * aspectRatio;
-        }
-
-        canvas.style.width = `${canvasWidth}px`;
-        canvas.style.height = `${canvasHeight}px`;
-
-      } else {
-
-        canvas.style.width = '100%';
-        canvas.style.height = '100%';
-      }
+      // visualViewport is the accurate visible area on iOS; fall back to innerWidth/Height.
+      var vv = window.visualViewport;
+      var w = Math.round(vv ? vv.width : window.innerWidth);
+      var h = Math.round(vv ? vv.height : window.innerHeight);
+      window.scrollTo(0, 0);
+      document.documentElement.style.width = w + "px";
+      document.documentElement.style.height = h + "px";
+      document.body.style.width = w + "px";
+      document.body.style.height = h + "px";
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
     }
 
-    let resizeTimeout;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(resizeCanvas, 50);
-    });
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', resizeCanvas);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', resizeCanvas);
+      window.visualViewport.addEventListener('scroll', function () { window.scrollTo(0, 0); });
+    }
+    // Scroll-lock: CSS touch-action alone won't stop iOS pinch-pan; non-passive touchmove does.
+    // Unity still receives the touch events (preventDefault only cancels browser scroll/zoom).
+    window.addEventListener('scroll', function () { window.scrollTo(0, 0); }, { passive: true });
+    document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+    document.addEventListener('gesturechange', function (e) { e.preventDefault(); });
 
     var buildUrl = "Build";
       var loaderUrl = buildUrl + "/{{{ LOADER_FILENAME }}}";
@@ -107,13 +104,8 @@
         };
         
         document.body.appendChild(script);
-        window.addEventListener('load', resizeCanvas());
+        window.addEventListener('load', resizeCanvas);
   </script>
-     <script type="text/javascript">
-        console.log = function() {};
-        console.warn = function() {};
-        console.error = function() {};
-    </script>
     <script>
       window.focus();
     </script>
