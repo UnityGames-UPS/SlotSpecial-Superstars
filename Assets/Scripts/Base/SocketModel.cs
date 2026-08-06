@@ -115,6 +115,12 @@ public class Player
 }
 
 [Serializable]
+public class BalanceSyncPayload
+{
+  public double balance;
+}
+
+[Serializable]
 public class Payload
 {
   public double currentWinning;

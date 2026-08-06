@@ -24,6 +24,8 @@ public class AudioController : MonoBehaviour
 
   // Remembers the user's sound-toggle preference so focus regain doesn't override it.
   private bool userMuted;
+  private bool isForceMuted;
+  private bool preFocusUserMuted;
 
   private void Awake()
   {
@@ -82,18 +84,35 @@ public class AudioController : MonoBehaviour
     if (map.TryGetValue(type, out var entry)) entry.source.mute = mute;
   }
 
-  internal void SetMuteAll(bool mute)
+  // User-toggle-driven — the sound button. Always reflects the player's chosen setting.
+  internal void SetUserMute(bool mute)
   {
     userMuted = mute;
-    foreach (var entry in entries) entry.source.mute = mute;
+    if (!isForceMuted)
+      foreach (var entry in entries) entry.source.mute = mute;
+  }
+
+  // Focus-driven — called from BOTH the JS OnFocusChanged path (via UIManager) and OnApplicationFocus
+  // below. Guarded by isForceMuted so a duplicate call for the same direction can't clobber the
+  // captured "restore to" state.
+  internal void SetMuteAll(bool forceMute)
+  {
+    if (forceMute == isForceMuted) return;
+    isForceMuted = forceMute;
+
+    if (forceMute)
+    {
+      preFocusUserMuted = userMuted;
+      foreach (var entry in entries) entry.source.mute = true;
+    }
+    else
+    {
+      foreach (var entry in entries) entry.source.mute = preFocusUserMuted;
+    }
   }
 
   private void OnApplicationFocus(bool focus)
   {
-    // On focus regain restore the user's preference instead of unconditionally unmuting.
-    foreach (var entry in entries)
-    {
-      entry.source.mute = focus ? userMuted : true;
-    }
+    SetMuteAll(!focus);
   }
 }

@@ -136,7 +136,7 @@ public class UIManager : MonoBehaviour
   private void SetSound(bool soundOn)
   {
     isSound = soundOn;
-    // SetMuteAll(true) mutes; isSound==true means audio plays, so invoke with !isSound.
+    // SetUserMute(true) mutes; isSound==true means audio plays, so invoke with !isSound.
     ToggleAudio?.Invoke(!isSound);
     ApplySoundButtonVisibility();
   }
@@ -174,6 +174,11 @@ public class UIManager : MonoBehaviour
   internal void LowBalPopup()
   {
     OpenPopup(LowBalancePopup_Object);
+  }
+
+  internal void CloseLowBalPopup()
+  {
+    ClosePopup(LowBalancePopup_Object);
   }
 
   internal bool IsLowBalPopupOpen => LowBalancePopup_Object != null && LowBalancePopup_Object.activeSelf;
@@ -488,7 +493,7 @@ public class UIManager : MonoBehaviour
     bool focused = value == "1";
     Debug.Log("UNITY FOCUS CHANGED: " + value + " (focused: " + focused + ")");
     // Honor the user's sound toggle on focus regain; always mute on focus loss.
-    audioController?.SetMuteAll(focused ? !isSound : true);
+    audioController?.SetMuteAll(!focused);
     socketController?.HandleFocusChange(focused);
   }
 

@@ -63,7 +63,8 @@ public class GameManager : MonoBehaviour
     SetButton(StopSpin_Button, () => StartCoroutine(StopSpin()));
 
     socketController.OnInit = InitGame;
-    uIManager.ToggleAudio = audioController.SetMuteAll;
+    socketController.OnBalanceSync = HandleBalanceSync;
+    uIManager.ToggleAudio = audioController.SetUserMute;
     uIManager.playButtonAudio = (s) => audioController.Play(s);
     uIManager.OnExit = () => socketController.CloseSocket();
     uIManager.OnLowBalConfirm = () => ToggleButtonGrp(true);
@@ -173,6 +174,23 @@ public class GameManager : MonoBehaviour
     else
     {
       uIManager.PopulateSymbolsPayout(socketController.InitSymbolData);
+    }
+  }
+
+  private void HandleBalanceSync(double newBalance)
+  {
+    currentBalance = newBalance;
+    uIManager.SetPlayerBalance(newBalance);
+
+    if (currentBalance < currentTotalBet)
+    {
+      ToggleButtonGrp(false);
+      uIManager.LowBalPopup();
+    }
+    else if (uIManager.IsLowBalPopupOpen)
+    {
+      uIManager.CloseLowBalPopup();
+      ToggleButtonGrp(true);
     }
   }
 

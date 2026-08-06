@@ -1,13 +1,14 @@
-# Focus / Visibility / Audio-Mute / Timeout / OnError / Orientation — Audit Runbook
+# Focus / Visibility / Audio-Mute / Timeout / OnError / Orientation / Balance-Sync — Audit Runbook
 
 > **Who this is for:** an LLM auditing ONE of our ~70 slot games. Every game shares this
-> lifecycle logic but with different class/method names. Your job: verify each of the 9 checks
+> lifecycle logic but with different class/method names. Your job: verify each of the 11 checks
 > below against the reference contract, report **PASS / FAIL / MISSING** with a `file:line`, and
 > where it's FAIL or MISSING, paste the corrected implementation.
 >
 > The reference game is **Diamond Riches**. All reference code below is copied verbatim from it.
-> (Exception: Check 7 — Orientation change — uses **Age of Gods** as its reference, since that game
-> carries the current responsive-scaling implementation.)
+> (Exceptions: Check 7 — Orientation change — uses **Age of Gods** as its reference, since that game
+> carries the current responsive-scaling implementation. Check 10 — Balance sync — uses
+> **SlotBase-RockClimber**, the first game in the line to implement it.)
 
 ---
 
@@ -21,6 +22,43 @@
 4. If a piece is MISSING or FAIL, output the exact code to add/fix, adapted to the target game's
    names (see the naming map).
 
+### Guardrail: fix what's in the reference, don't invent what isn't
+
+When adapting the **Reference implementation** to the target game, port it faithfully (renaming
+per the naming map) — don't add extra behavior the reference doesn't specify, even if it looks
+like a reasonable improvement. Two concrete traps hit during a real audit pass:
+
+- **Check 8 (`resizeCanvas`)**: the reference resizes `documentElement`/`body`/`canvas` directly
+  off `visualViewport`. A target game's *existing* `resizeCanvas` may do something different (e.g.
+  a hardcoded-aspect-ratio letterbox) — replace it with the reference version, don't layer a
+  debounce or extra helper functions on top that the reference doesn't have.
+- **Check 7 (`SwitchDisplay`) — CONFIRMED convention, but not the WebGL template's job**: across
+  this line of ~70 games, the orientation/scaling handler's GameObject is named **`OC`** and its
+  entry point is **`SwitchDisplay(string dimensions)`**. This is a real, standing contract — the
+  **host platform** (the React Native wrapper) calls `SendMessage('OC', 'SwitchDisplay', "<w>,<h>")`
+  directly on resize/rotation. Do **not** add a relay call for this inside `index.html` —
+  the host already does it outside the Unity build, and adding a second call site from the
+  template would be redundant/conflicting, not a fix. If `SwitchDisplay` looks orphaned (no
+  in-repo caller besides the editor hotkey), that's expected and correct — verify the GameObject is
+  named `OC` and the method signature matches, and leave it there. Nothing to wire.
+- **Check 8 (`createUnityInstance(...).then((unityInstance) => { ... })`)**: the reference's
+  `.then()` callback body is **empty** — no lines inside it. Editing this file to fix `resizeCanvas`
+  (Check 8) or remove console suppression (Check 9) does not license adding anything to that
+  callback: no `window.unityInstance = unityInstance`, no
+  `window.SendMessage = unityInstance.SendMessage.bind(unityInstance)`, no
+  `window.ReactNativeWebView.postMessage("UnityReady")` or similar ready-signal, even though it
+  looks like a natural, low-risk addition that would help the host know the build finished loading.
+  None of the 9 checks call for an instance-ready signal. If a target game's `index.html` already
+  has one, leave it — but do not add one while working a different check, and do not assume it
+  needs to exist just because the jslib's `sendFocusToUnity` mentions a `SendMessage` global as one
+  of its lookup fallbacks (Check 1/6's reference already handles that with its own
+  `typeof SendMessage === 'function'` / `typeof unityInstance !== 'undefined'` guards — it does not
+  require `index.html` to publish either global).
+
+If you're tempted to add code to satisfy a check that isn't shown in that check's **Reference
+implementation** block AND isn't a confirmed cross-game convention like the one above, stop and
+mark it UNVERIFIED with a note instead — that is the correct audit output, not silent invention.
+
 ### Naming map — match by ROLE, not exact name
 
 Names vary across the 70+ games. Map by responsibility, not spelling:
@@ -33,26 +71,32 @@ Names vary across the 70+ games. Map by responsibility, not spelling:
 | JS interop wrapper | `JSFunctCalls` | `JSManager`, `WebGLBridge` |
 | Disconnect popup call | `DisconnectionPopup()` | `OpenDisconnectPopup()`, `ShowDisconnect()` |
 | User sound flag | `isSound` | `soundOn`, `audioEnabled` |
-| Mute-all method | `SetMuteAll(bool)` | `SetMute(bool)`, `PauseAllAudio()`/`ResumeAudio()` |
+| Mute-all method | `SetMuteAll(bool)` | `SetMute(bool)`. **Not** `PauseAllAudio()`/`ResumeAudio()` — see Check 3, Pause/UnPause is retired |
 | Orientation/scaling handler | `OrientationChange` | `ResolutionManager`, `AspectController`, `ScreenOrientationHandler` |
 | Orientation entry point | `SwitchDisplay(string)` | `OnResize(string)`, `SetOrientation(string)` |
 | WebGL template | `Assets/WebGLTemplates/custom/index.html` | `Assets/WebGLTemplates/<template>/index.html` |
+| Balance-sync payload DTO | `BalanceSyncPayload` (RockClimber) | any `[Serializable]` class with a single `balance` field |
+| Balance field read for spin-gating | `SocketIOManager.playerdata.balance` | whatever field the game's spin gate already compares against |
 
-If a game splits mute into `PauseAllAudio()` / `ResumeAudio()` instead of a single
-`SetMuteAll(bool)`, that is acceptable **only if** resume still respects the user's sound setting
-(see Check 3's invariant).
+If a game splits mute into `PauseAllAudio()` / `ResumeAudio()` (engine `Pause()`/`UnPause()`) instead
+of a single mute-flag `SetMuteAll(bool)`, that is a **FAIL, not an acceptable variant** — see Check 3.
+Engine pause/resume is a second, independent thing controlling audibility on top of the `.mute` flag,
+and production games in this line have hit real "audio stuck silent after refocus" bugs from the two
+desyncing. Convert it to mute-flag toggling as part of the fix.
 
-### The 9 checks at a glance
+### The 11 checks at a glance
 
 1. **Visibility listener registration** — `.jslib` + `RegisterVisibilityListener` wrapper, called from `Awake`.
 2. **`OnFocusChanged` callback** — `public`, routes to audio + socket.
-3. **Audio mute/unmute honoring the runtime sound setting** — blur mutes, focus restores to user's choice.
+3. **Audio mute/unmute honoring the runtime sound setting** — blur mutes, focus restores to user's choice, the user's own mute/unmute button always wins over a stuck forced-mute flag, and BOTH the JS-driven `OnFocusChanged` and Unity's native `OnApplicationFocus` call the *same* mute-all method (mute-flag toggling only — never `Pause()`/`UnPause()`), guarded so a duplicate call from the other path can't clobber the stored "restore to" state.
 4. **60-second background timeout** — closes the socket if the player stays away too long.
 5. **`OnError(Error err)`** — session-expired vs generic error handling.
 6. **Instant JS-side mute** — `.jslib` suspends the WebAudio context on blur so audio stops immediately.
 7. **Orientation change / responsive scaling** — `SwitchDisplay` rotates the UI and retunes the CanvasScaler match on resize.
 8. **WebGL template canvas fit** — `custom/index.html` has a clean `resizeCanvas` + resize/orientationchange listeners; template macros intact.
 9. **No blanket console suppression in the WebGL template** — `custom/index.html` must not override `console.log`/`warn`/`error` to no-ops.
+10. **Balance sync socket event (`balance:sync`)** — a backend-pushed balance update mutates the same field the spin gate reads, and refreshes the balance UI immediately.
+11. **No high-frequency/heartbeat debug logging** — ping/pong (and similarly-timed) `Debug.Log` calls must not fire on every tick of a short interval; they drown out real diagnostics in a live console.
 
 ---
 
@@ -161,6 +205,11 @@ RegisterVisibilityChangeListener: function(gameObjectNamePtr) {
 A **`public`** method named exactly `OnFocusChanged(string value)` on the same GameObject passed
 in Check 1. It must (a) parse `"1"` → focused, (b) drive audio, (c) notify the socket manager.
 
+**(b) must call the same audio-mute entry point that the native `OnApplicationFocus` path uses (Check
+3)** — both focus sources feed one shared mute-all method, never two separate mechanisms. **(c)** is
+exclusive to this path — see Check 4's note on why the socket timeout must not also be wired from
+`OnApplicationFocus`.
+
 ### Reference implementation
 `UIManager.cs`:
 ```csharp
@@ -181,65 +230,225 @@ public void OnFocusChanged(string value)
 
 ---
 
-## Check 3 — Audio mute/unmute honoring the runtime sound setting
+## Check 3 — Audio mute/unmute honoring the runtime sound setting, driven from BOTH focus sources
 
 ### What to look for
-Two paths mute audio, and **both must restore to the user's chosen setting on focus**, never
-force-unmute:
-- **WebGL path** — via `OnFocusChanged` → `SetMuteAll(focused ? !isSound : true)` (Check 2).
-- **Editor/native path** — `AudioController.OnApplicationFocus(bool)` mutes on blur, restores to
-  `userMuted` on focus.
+Two independent triggers report a focus change, and — learned from a real production bug — **in a
+WebGL build either or both may fire for the same blur/focus event**, not reliably just one:
+- **The JS-driven path** — `OnFocusChanged` (Check 2), fed by the `.jslib` visibility listener. The
+  only signal guaranteed to fire inside an embedded ReactNativeWebView.
+- **Unity's native path** — `OnApplicationFocus(bool)`, wherever the game places it (often on the
+  same component that owns `AudioController`, or on `AudioController` itself). Unreliable inside a
+  WebView, but commonly still fires for ordinary browser tab-switch/window-blur, and always fires in
+  the Editor — so it must not be skipped just because the game only ships WebGL.
 
-And the user's sound toggle must feed `userMuted`:
-- `isSound` is the user's runtime flag; `SetSound(bool)` updates it and calls `ToggleAudio?.Invoke(!isSound)`.
-- `GameManager` wires `uIManager.ToggleAudio = audioController.SetMuteAll`.
-- `SetMuteAll(bool mute)` stores `userMuted = mute` before muting sources.
+**Both paths must call the exact same mute-all method** — never two different mechanisms (e.g. a
+mute-flag on one path, `AudioSource.Pause()`/`UnPause()` on the other). That single method must
+**never force-unmute** — regaining focus restores exactly the user's last chosen setting, whatever
+form that setting takes in this game (single flag vs. per-category sliders — see "Adapting to the
+game's mute model" below).
+
+### Do not use `AudioSource.Pause()` / `UnPause()` for focus muting — retired pattern
+An older revision of this doc allowed `Pause()`-on-blur / `UnPause()`-on-focus as an "acceptable"
+native-path alternative to mute-flag toggling. **That guidance is retired — treat it as a FAIL now.**
+Engine pause/resume is a second, independent thing controlling audibility on top of the `.mute` flag;
+the two are trivial to desync (see the retained trap write-up further down for what that looked like
+in practice). Always mute via the `.mute` flag, from both focus paths, through one shared method.
 
 ### The invariant (verify this explicitly)
 > **Regaining focus must never un-mute a game the user muted.**
-> On focus, the WebGL path restores to `!isSound` and the native path restores to `userMuted` —
-> both equal the user's current choice. On blur, both force `mute = true` regardless of setting.
+> Whichever focus source fires, restoring on focus must reproduce the user's last chosen setting
+> exactly — never a hardcoded `mute = false`. On blur, both sources force `mute = true` regardless of
+> setting.
 
-### Reference implementation
-`AudioController.cs`:
+### The reentrancy trap (hit in a real audit pass — verify this explicitly)
+> **If both focus sources can fire for the same blur/focus event, the shared mute-all method must be
+> idempotent, or the second call clobbers the first call's captured "restore to" state.**
+>
+> Concretely: blur fires from source A → `SetMuteAll(true)` captures each source's current `.mute`
+> (the user's real setting) into a "restore to" slot, then forces `.mute = true`. Blur *also* fires
+> from source B for the same event (the JS bridge and Unity's own `OnApplicationFocus` both firing
+> for one tab switch/backgrounding is the common case now that both are wired, not an edge case) — a
+> naive `SetMuteAll(true)` runs again, but `.mute` is already `true`, so it captures `true` as the
+> "restore to" value, permanently overwriting the user's real setting. On focus regain, both sources
+> fire `SetMuteAll(false)`, and every call restores `.mute` to the clobbered `true`. **The audio is
+> now stuck muted (or paused, under the retired Pause/UnPause pattern) after every focus cycle**, and
+> the only way to hear it again is to manually move the sound/music slider — which sets `.mute`
+> directly, bypassing the corrupted restore value — until the next blur/focus cycle clobbers it again.
+>
+> **Fix:** guard the mute-all method with a single re-entrancy flag so a second call for the same
+> direction is a no-op:
+> ```csharp
+> private bool isForceMuted = false;
+>
+> internal void SetMuteAll(bool forceMute)
+> {
+>     if (forceMute == isForceMuted) return;   // already in that state — don't re-capture/re-restore
+>     isForceMuted = forceMute;
+>     // ... capture-and-force or restore, as below ...
+> }
+> ```
+> **Verify:** confirm the game's mute-all method has an equivalent guard. Now that wiring both focus
+> sources to the same method is the recommended pattern (not optional), this bug is latent in any
+> game that wires both without the guard, even if it hasn't been reported yet.
+
+### Adapting to the game's mute model — single flag vs. per-category sliders
+Games in this line differ in how the *user's chosen setting* is represented:
+- **Single flag** (reference: `isSound` / `userMuted`) — one bool for the whole game's audio.
+- **Per-category sliders** (e.g. separate Music and SFX sliders, each writing volume + `.mute`
+  straight onto its own `AudioSource`(s), with no separate boolean flag at all).
+
+Don't force a slider-based game into the single-flag reference shape. Instead, capture and restore
+**per `AudioSource`**, using whatever that source's `.mute` flag currently is as the source of truth
+for "the user's setting" — this covers both models, since a slider-based game already keeps its truth
+on `.mute`/volume and never needed a separate `isSound` bool:
 ```csharp
-internal void SetMuteAll(bool mute)
-{
-    userMuted = mute;
-    foreach (var entry in entries) entry.source.mute = mute;
-}
+private List<AudioSource> allSources;
+private readonly Dictionary<AudioSource, bool> preFocusMuteState = new Dictionary<AudioSource, bool>();
+private bool isForceMuted = false;
 
-private void OnApplicationFocus(bool focus)
+internal void SetMuteAll(bool forceMute)
 {
-    foreach (var entry in entries)
+    if (forceMute == isForceMuted) return;
+    isForceMuted = forceMute;
+
+    foreach (var source in allSources)
     {
-        entry.source.mute = focus ? userMuted : true;
+        if (source == null) continue;
+        if (forceMute)
+        {
+            preFocusMuteState[source] = source.mute;
+            source.mute = true;
+        }
+        else
+        {
+            source.mute = preFocusMuteState.TryGetValue(source, out bool prevMuted) ? prevMuted : source.mute;
+        }
     }
 }
 ```
+For a single-flag game, the reference's `userMuted`-overwrite shape (below) is simpler and still
+correct — use whichever shape already matches the game, as long as **both focus paths call the same
+method** and it carries the reentrancy guard above.
+
+### The reverse invariant (verify this too — hit in a real audit pass)
+> **A stuck/stale forced-mute must never block the user's own mute/unmute button.**
+> Games that implement muting as a *layered* flag (e.g. `source.mute = focusForceMuted ||
+> categoryMuted`, rather than the reference's single `userMuted` overwrite) are exposed to this:
+> if a spurious/unpaired blur signal sets `focusForceMuted = true` and the matching focus-regain
+> signal is ever missed or delayed — routine in WebView embeds, where a native overlay or bridge
+> event can fire a DOM `blur` without the player actually leaving the game — then
+> `focusForceMuted` sticks `true` forever. From that point, toggling the in-game sound/music
+> button changes `categoryMuted` but the OR'd expression keeps evaluating muted, so **the button
+> visibly does nothing** until an unrelated, later focus/blur cycle happens to clear the stuck
+> flag. This reads to a tester exactly like "toggling music back on doesn't work until I lose
+> focus and regain focus."
+>
+> **Verify:** find every place a UI mute/unmute control is wired (button `onClick`, `SetSound`,
+> `ToggleMute`, etc.) and confirm it clears any forced-mute/focus flag before or while applying the
+> category state — an explicit user interaction is proof the game currently has real interactive
+> focus, so it must always win immediately, regardless of what a stale blur/focus signal claims.
+> The reference avoids this class of bug entirely by not layering a separate forced-mute flag —
+> `SetMuteAll` is the single source of truth for both the user toggle and the focus path. If a
+> target game instead layers a forced-mute on top of per-category mute (as is reasonable when a
+> game splits mute into more than the reference's one `isSound` flag), that layered flag **must**
+> be reset by the user-toggle code path, not only by a matching focus-regain event.
+
+### The Pause/UnPause vs. mute-flag desync trap (why Pause/UnPause is retired — historical context)
+> **If any code path calls `AudioSource.Pause()` on blur, every mute-toggling code path must be
+> able to `UnPause()` it too — not just the code path that originally paused it.**
+>
+> This is the concrete failure that led to retiring `Pause()`-on-blur / `UnPause()`-on-focus as an
+> allowed native/editor-path pattern (see "Do not use `AudioSource.Pause()`/`UnPause()`" above — it's
+> a FAIL now, not an acceptable alternative). It creates a second, *independent* thing controlling
+> whether audio is actually audible: the engine playback state (`isPlaying`/paused), separate from
+> the `.mute` flag. If the game's user-facing mute/unmute toggle (`ToggleMute`, `SetMuteAll`, etc.)
+> only ever sets `.mute` and never calls `UnPause()`, then a source that got `Pause()`d by a
+> focus-loss event stays **silently paused** even after the user turns their sound/music setting back
+> on — because flipping `.mute = false` does not resume a paused `AudioSource`. Only the *next*
+> actual focus-regain event (whose handler calls `UnPause()`) makes it audible again. This produces
+> the exact same "toggling sound/music back on doesn't work until I lose focus and regain focus"
+> symptom as the reverse-invariant bug above, and the exact same "stuck silent after refocus" symptom
+> as the reentrancy trap above, but from **three distinct causes** — check all three before concluding
+> which one it is.
+>
+> **If you find this pattern in a target game:** don't patch it by adding `UnPause()` calls to every
+> mute-toggling path (that was last revision's guidance) — convert the whole native/editor path to
+> mute-flag toggling through the shared `SetMuteAll`-equivalent instead, per "What to look for" above.
+> That removes the second state entirely rather than keeping it in sync by hand.
+
+### Reference implementation
+`AudioController.cs` (single-flag shape — add the reentrancy guard from above regardless of shape).
+Note the split: `SetMuteAll` is the **focus-driven** method — both focus sources call it, and it never
+touches `userMuted`. The **user-toggle** entry point (slider/button, wired via `ToggleAudio`/`SetSound`
+in the reference) is a separate method that *does* write `userMuted`, and defers to it while a focus
+mute is in effect:
+```csharp
+private bool isForceMuted = false;
+private bool preFocusUserMuted;
+
+// Focus-driven — called from BOTH OnFocusChanged (Check 2) and OnApplicationFocus below.
+internal void SetMuteAll(bool forceMute)
+{
+    if (forceMute == isForceMuted) return;
+    isForceMuted = forceMute;
+
+    if (forceMute)
+    {
+        preFocusUserMuted = userMuted;
+        foreach (var entry in entries) entry.source.mute = true;
+    }
+    else
+    {
+        foreach (var entry in entries) entry.source.mute = preFocusUserMuted;
+    }
+}
+
+// User-toggle-driven — the sound/music button or slider callback.
+internal void SetUserMute(bool mute)
+{
+    userMuted = mute;
+    if (!isForceMuted)
+        foreach (var entry in entries) entry.source.mute = mute;
+}
+
+// Native/editor focus path — calls the SAME method the WebGL OnFocusChanged path calls.
+private void OnApplicationFocus(bool focus)
+{
+    SetMuteAll(!focus);
+}
+```
+
+> `HandleFocusChange` (the socket timeout, Check 4) stays exclusive to the WebGL/JS `OnFocusChanged`
+> path. Do **not** also call it from `OnApplicationFocus` — it isn't reliable enough inside a WebView
+> to gate a network-affecting timer, so a game that only ships WebGL should treat the JS bridge as the
+> single source of truth for the timeout, while treating audio muting as fed by both sources (audio
+> muting is safe from either source firing spuriously; closing a socket on a false signal is not).
 
 `UIManager.cs` (user toggle):
 ```csharp
 private void SetSound(bool soundOn)
 {
     isSound = soundOn;
-    // SetMuteAll(true) mutes; isSound==true means audio plays, so invoke with !isSound.
+    // SetUserMute(true) mutes; isSound==true means audio plays, so invoke with !isSound.
     ToggleAudio?.Invoke(!isSound);
     ApplySoundButtonVisibility();
 }
 ```
 
-`GameManager.cs` (wiring):
+`GameManager.cs` (wiring — note this wires the **user-toggle** method, not the focus-driven one):
 ```csharp
-uIManager.ToggleAudio = audioController.SetMuteAll;
+uIManager.ToggleAudio = audioController.SetUserMute;
 ```
 
 ### Common failure modes
-- `OnApplicationFocus` restores with `false` (hard un-mute) instead of `userMuted` → breaks the invariant.
-- `SetMuteAll` mutes sources but forgets to store `userMuted` → the native focus path later restores to a stale value.
-- `ToggleAudio` never wired in the manager (`GameManager`/bootstrap) → the sound button does nothing.
-- Polarity inversion: passing `isSound` instead of `!isSound` to a *mute* method → button is backwards.
-- Game has no `OnApplicationFocus` at all → editor/native builds don't mute on blur (WebGL still works via `OnFocusChanged`; flag as partial FAIL if native/editor focus muting is expected).
+- `OnApplicationFocus` restores with `false` (hard un-mute) instead of the user's stored setting → breaks the invariant.
+- `SetMuteAll`/equivalent lacks the `isForceMuted` reentrancy guard while both focus paths are wired → the reentrancy trap above; audio gets stuck muted after the first refocus that receives duplicate blur/focus signals.
+- `OnApplicationFocus` and `OnFocusChanged` call two different mechanisms (e.g. one mutes, the other `Pause()`s) instead of the same shared method → the two silencing states can desync; treat this as a FAIL and consolidate onto one mute-flag method.
+- `ToggleAudio`/slider callbacks never wired to actually reach the `AudioSource`(s) → the sound button does nothing.
+- Polarity inversion: passing `isSound` instead of `!isSound` (or the slider-equivalent) to a *mute* method → button is backwards.
+- Game has no `OnApplicationFocus` wired to the shared mute method at all → editor/native testing and ordinary browser tab-switches (not just the WebView-embedded case) don't mute on blur. This is now a **FAIL**, not a partial/optional gap — wire it, calling the same method `OnFocusChanged` calls (see Check 2).
+- A layered forced-mute flag (`focusForceMuted || categoryMuted`) that only gets cleared by a focus-regain event, never by the user-toggle code path → sound/music button silently stops working after any unpaired/stray blur signal, and only a later focus cycle fixes it. See "The reverse invariant" above.
 
 ---
 
@@ -248,6 +457,14 @@ uIManager.ToggleAudio = audioController.SetMuteAll;
 ### What to look for
 On the socket manager: fields, a `HandleFocusChange(bool)` entry point (called from Check 2), and
 a `FocusTimeoutCheck` coroutine that closes the socket after `maxBackgroundTime` (60s) away.
+
+**`HandleFocusChange` must be called from the WebGL/JS `OnFocusChanged` path only — never from
+Unity's native `OnApplicationFocus`.** This is asymmetric with Check 3's audio wiring on purpose:
+`OnApplicationFocus` isn't reliable enough inside a WebView to gate a network-affecting timer, and
+since these games ship WebGL-only, the JS bridge is the one signal actually trustworthy in
+production. A spurious `OnApplicationFocus` firing (or not firing) should never start or clear the
+background-close timer. Audio muting is safe to drive from both sources because a wrong mute call is
+just a wrong mute call; a wrong socket close is a dropped session.
 
 ### Reference implementation
 `SocketController.cs` — fields:
@@ -736,6 +953,156 @@ are left as the browser's native implementations.
 
 ---
 
+## Check 10 — Balance sync socket event (`balance:sync`)
+
+### What to look for
+The backend can push an out-of-band balance update at any time (not just as part of a spin/gamble/
+bonus result). Payload shape from the backend:
+```
+name: "balance:sync",
+payload: {
+    userId: string;
+    gameId: string;
+    balance: number;
+}
+```
+`userId`/`gameId` identify the player/game to the backend and are **not used client-side** — ignore
+them. Only `balance` matters. Three linked pieces must exist:
+- A `[Serializable]` DTO with a single `balance` field (reference: `BalanceSyncPayload`).
+- A registration + handler on the socket manager that deserializes the raw payload and writes the new
+  value into **whichever field the game's spin gate already reads** — not a parallel/duplicate field.
+  Find that field first (grep for what the low-balance check / spin-start gate compares against)
+  before wiring this in; every game in this line names it differently.
+- A call into the UI layer that snaps the balance display to the new value immediately (not tweened —
+  this isn't a spin-result animation) and re-runs the low-balance check, since an external balance
+  push can move the player from "can spin" to "can't spin" or vice versa outside of any spin flow.
+
+### Reference implementation
+`SocketIOManager.cs` (RockClimber) — registration, next to the other `gameSocket.On<string>(...)` calls:
+```csharp
+gameSocket.On<string>("balance:sync", OnBalanceSync);
+```
+DTO, next to the existing `Player` class:
+```csharp
+[Serializable]
+public class BalanceSyncPayload
+{
+  public double balance;
+}
+```
+Handler — deserializes the raw string via `JsonConvert.DeserializeObject`, the same safe path already
+used for every other complex payload in this file (**not** a typed `On<BalanceSyncPayload>(...)`
+registration — that would depend on the Socket.IO plugin's own decoder supporting arbitrary
+game-defined classes, which isn't confirmed):
+```csharp
+private void OnBalanceSync(string data)
+{
+  BalanceSyncPayload syncPayload = JsonConvert.DeserializeObject<BalanceSyncPayload>(data);
+  if (syncPayload == null) return;
+
+  if (playerdata == null) playerdata = new Player();
+  playerdata.balance = syncPayload.balance;
+
+  slotManager.UpdateBalanceDisplay(syncPayload.balance);
+}
+```
+`SlotBehaviour.cs` (RockClimber) — snaps the UI and re-checks the low-balance gate:
+```csharp
+internal void UpdateBalanceDisplay(double newBalance)
+{
+  currentBalance = newBalance;
+  if (Balance_text) Balance_text.text = newBalance.ToString("F3");
+  CompareBalance();
+}
+```
+
+### Common failure modes
+- Writing the new balance into a field the spin gate doesn't actually read (e.g. a display-only cache)
+  → the balance text updates but the next spin still checks the stale value.
+- Tweening the balance display like a spin-result win → looks like the player just won/lost money
+  instead of an external correction.
+- Not re-running the low-balance check after the sync → a balance pushed below the current bet
+  doesn't surface the low-balance popup until the next spin attempt.
+- Deserializing `userId`/`gameId` into the DTO and treating a missing/mismatched one as an error →
+  the spec says ignore them; the DTO should only declare `balance`.
+
+---
+
+## Check 11 — No high-frequency/heartbeat debug logging
+
+### What to look for
+The socket manager's ping/pong heartbeat (`SendPing`/`PingCheck`/`OnPongReceived` in the reference,
+or whatever the game calls its keepalive loop) runs on a short fixed interval — `pingInterval`, ~2s
+in the reference — for as long as the socket is connected, i.e. the entire play session. Any
+`Debug.Log` (not `LogWarning`/`LogError`, which are for genuine problems) inside that loop or its
+response handler fires every single tick and floods the console within minutes, burying real
+diagnostics — including the `[JS]`/`[ERROR]`/`[SOCKET]` logs the other checks in this doc rely on to
+verify behavior in a live build. This was caught in a real audit pass on `SocketIOManager.cs`
+(`PingCheck`, `OnPongReceived`) and had to be commented out.
+
+**Verify:** find the ping/heartbeat loop and its response handler; confirm neither logs on the
+success path. `Debug.LogWarning`/`Debug.LogError` on the *failure* path (missed pong, disconnect) are
+fine and expected — those are genuine, low-frequency diagnostics, not noise.
+
+### Reference implementation
+`SocketIOManager.cs` (RockClimber) — the per-tick and per-pong logs are removed/commented, the
+failure-path warning/error logs are kept:
+```csharp
+private void OnPongReceived(string data)
+{
+  waitingForPong = false;
+  missedPongs = 0;
+  lastPongTime = Time.time;
+}
+
+private IEnumerator PingCheck()
+{
+  while (true)
+  {
+    if (missedPongs == 0)
+    {
+      uiManager.CheckAndClosePopups();
+    }
+
+    if (waitingForPong)
+    {
+      if (missedPongs == 2)
+      {
+        uiManager.ReconnectionPopup();
+      }
+      missedPongs++;
+      Debug.LogWarning($"⚠️ Pong missed #{missedPongs}/{MaxMissedPongs}");
+
+      if (missedPongs >= MaxMissedPongs)
+      {
+        Debug.LogError("❌ Unable to connect to server — 5 consecutive pongs missed.");
+        isConnected = false;
+        uiManager.DisconnectionPopup();
+        yield break;
+      }
+    }
+
+    waitingForPong = true;
+    lastPongTime = Time.time;
+    SendDataWithNamespace("ping");
+    yield return new WaitForSeconds(pingInterval);
+  }
+}
+```
+
+### Common failure modes
+- `Debug.Log` left on the ping-sent / pong-received success path → console fills at ~1 line per
+  `pingInterval` for the whole session, making it useless for spotting an actual error live.
+- The fix applied by deleting the log call outright vs. commenting it out — either is acceptable, but
+  don't replace it with a lower-frequency version (e.g. "log every 10th ping") — that's still
+  unrequested behavior the reference doesn't have; just remove it.
+- Other periodic loops elsewhere in the game (auto-spin ticking, animation frame callbacks, resize
+  handlers) carrying the same pattern — the fix here is ping/pong-specific, but the same review
+  question ("does this log on every tick of a loop that runs for the whole session?") applies to any
+  such loop found elsewhere.
+
+---
+
 ## Verdict template (use per check)
 
 ```
@@ -752,13 +1119,15 @@ Fix (if FAIL/MISSING): <adapted code block>
 |---|---|---|---|---|
 | 1 | Visibility listener registration (.jslib + wrapper + Awake) | | | |
 | 2 | `OnFocusChanged` public callback | | | |
-| 3 | Audio mute/unmute honors user sound setting (both paths + invariant) | | | |
+| 3 | Audio mute/unmute honors user sound setting (both focus paths call one shared mute-flag method, reentrancy-guarded; invariant + reverse invariant; no Pause/UnPause) | | | |
 | 4 | 60s background timeout (`WaitForSecondsRealtime`) | | | |
 | 5 | `OnError` (session-expired vs generic) | | | |
 | 6 | Instant JS-side mute (WebAudio suspend in `.jslib`) | | | |
 | 7 | Orientation change / responsive scaling (`SwitchDisplay` + continuous match) | | | |
 | 8 | WebGL template canvas fit (`resizeCanvas` + listeners, macros intact) | | | |
 | 9 | No blanket console suppression in WebGL template | | | |
+| 10 | Balance sync socket event (`balance:sync`) | | | |
+| 11 | No high-frequency/heartbeat debug logging | | | |
 
 ---
 

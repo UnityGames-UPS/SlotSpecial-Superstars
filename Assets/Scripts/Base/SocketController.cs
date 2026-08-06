@@ -42,6 +42,9 @@ public class SocketController : MonoBehaviour
   // ResultData.payload.currentWinning. The controller self-wires this in its Start.
   internal Action OnSpinResult;
 
+  // Fired when a backend-pushed balance:sync arrives, carrying the new balance.
+  internal Action<double> OnBalanceSync;
+
   private bool hasFocus = true;
   private float focusLostTime = 0f;
   private Coroutine focusCheckRoutine;
@@ -135,6 +138,7 @@ public class SocketController : MonoBehaviour
     GameSocket.On<string>("game:init", OnListenEvent);
     GameSocket.On<string>("result", OnListenEvent);
     GameSocket.On<string>("pong", OnPongReceived);
+    GameSocket.On<string>("balance:sync", HandleBalanceSync);
 
     manager.Open();
   }
@@ -184,6 +188,17 @@ public class SocketController : MonoBehaviour
   {
     waitingForPong = false;
     missedPongs = 0;
+  }
+
+  private void HandleBalanceSync(string data)
+  {
+    BalanceSyncPayload syncPayload = JsonConvert.DeserializeObject<BalanceSyncPayload>(data);
+    if (syncPayload == null) return;
+
+    if (PlayerData == null) PlayerData = new Player();
+    PlayerData.balance = syncPayload.balance;
+
+    OnBalanceSync?.Invoke(syncPayload.balance);
   }
 
   private void OnListenEvent(string data)
