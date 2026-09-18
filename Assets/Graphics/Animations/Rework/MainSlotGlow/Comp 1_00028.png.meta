@@ -1,7 +1,10 @@
 fileFormatVersion: 2
 guid: e1ab924e2dc3d40fb87ac429c635fdf2
 TextureImporter:
-  internalIDToNameTable: []
+  internalIDToNameTable:
+  - first:
+      213: -9029579107478794562
+    second: Comp 1_00028_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -121,7 +124,29 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
-    sprites: []
+    sprites:
+    - serializedVersion: 2
+      name: Comp 1_00028_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 415
+        height: 600
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ebe007b74ad70b280800000000000000
+      internalID: -9029579107478794562
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     customData: 
     physicsShape: []

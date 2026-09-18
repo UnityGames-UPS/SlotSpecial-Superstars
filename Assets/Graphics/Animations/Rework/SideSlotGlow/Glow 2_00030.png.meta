@@ -1,7 +1,10 @@
 fileFormatVersion: 2
 guid: 5f1ead9b5160e4b46acaef916a935597
 TextureImporter:
-  internalIDToNameTable: []
+  internalIDToNameTable:
+  - first:
+      213: 3805900606244951037
+    second: Glow 2_00030_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -121,7 +124,29 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
-    sprites: []
+    sprites:
+    - serializedVersion: 2
+      name: Glow 2_00030_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 355
+        height: 360
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: df39ca5df6641d430800000000000000
+      internalID: 3805900606244951037
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     customData: 
     physicsShape: []

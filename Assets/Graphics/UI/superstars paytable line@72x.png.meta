@@ -1,7 +1,10 @@
 fileFormatVersion: 2
 guid: 259a3b50e7c0d4df88eefff3ced21d50
 TextureImporter:
-  internalIDToNameTable: []
+  internalIDToNameTable:
+  - first:
+      213: 5074424593859647036
+    second: superstars paytable line@72x_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -121,7 +124,29 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
-    sprites: []
+    sprites:
+    - serializedVersion: 2
+      name: superstars paytable line@72x_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 1159
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c36928c584afb6640800000000000000
+      internalID: 5074424593859647036
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     customData: 
     physicsShape: []

@@ -1,7 +1,10 @@
 fileFormatVersion: 2
 guid: bd58a438600914d8cadf100eab426daa
 TextureImporter:
-  internalIDToNameTable: []
+  internalIDToNameTable:
+  - first:
+      213: -7755835769440255587
+    second: superstarsbet-@72x_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -121,7 +124,29 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
-    sprites: []
+    sprites:
+    - serializedVersion: 2
+      name: superstarsbet-@72x_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 364
+        height: 204
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d91ce3ab57cbd5490800000000000000
+      internalID: -7755835769440255587
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     customData: 
     physicsShape: []

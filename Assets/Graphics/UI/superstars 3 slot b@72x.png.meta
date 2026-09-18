@@ -1,7 +1,10 @@
 fileFormatVersion: 2
 guid: 34056ea739e944d64b5c0ae9bf81487d
 TextureImporter:
-  internalIDToNameTable: []
+  internalIDToNameTable:
+  - first:
+      213: -7273271505984411748
+    second: superstars 3 slot b@72x_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -121,7 +124,29 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
-    sprites: []
+    sprites:
+    - serializedVersion: 2
+      name: superstars 3 slot b@72x_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 1191
+        height: 659
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c9724dac916201b90800000000000000
+      internalID: -7273271505984411748
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     customData: 
     physicsShape: []

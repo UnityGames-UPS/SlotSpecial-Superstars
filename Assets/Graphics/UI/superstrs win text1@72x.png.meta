@@ -1,7 +1,10 @@
 fileFormatVersion: 2
 guid: dfbe49a5f666948ff800b9caef1e21d1
 TextureImporter:
-  internalIDToNameTable: []
+  internalIDToNameTable:
+  - first:
+      213: -346584405310570478
+    second: superstrs win text1@72x_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -121,7 +124,29 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
-    sprites: []
+    sprites:
+    - serializedVersion: 2
+      name: superstrs win text1@72x_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 123
+        height: 75
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 21006c4d15fa03bf0800000000000000
+      internalID: -346584405310570478
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     customData: 
     physicsShape: []
